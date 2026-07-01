@@ -6,6 +6,7 @@ import {
   generateInviteLink,
 } from '../../services/api'
 import WhatsAppButton from '../../components/admin/WhatsAppButton'
+import { getCountryFromPhone } from '../../utils/phoneCountry'
 
 /**
  * GuestManagement — admin page for managing the guest list.
@@ -139,9 +140,20 @@ export default function GuestManagement() {
               value={form.whatsapp}
               onChange={handleFormChange}
               required
-              placeholder="5491112345678"
+              placeholder="+503 7712 3456"
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
+            {(() => {
+              const country = getCountryFromPhone(form.whatsapp)
+              return country ? (
+                <p className="mt-1 text-xs text-slate-500 flex items-center gap-1">
+                  <span>{country.flag}</span>
+                  <span>{country.name}</span>
+                </p>
+              ) : form.whatsapp.length > 0 ? (
+                <p className="mt-1 text-xs text-slate-400">Unknown country code</p>
+              ) : null
+            })()}
           </div>
 
           <div className="w-24">
