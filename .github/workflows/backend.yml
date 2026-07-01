@@ -1,0 +1,55 @@
+# Backend CI/CD Workflow — Azure Functions (Node.js)
+# Triggers on push or pull_request targeting the main branch.
+
+name: Backend — Deploy to Azure Functions
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  # The name of the existing Azure Function App to deploy to.
+  FUNCTION_APP_NAME: wedding-functions-1016356073
+  # Node.js version expected by the Azure Functions runtime.
+  NODE_VERSION: '20'
+
+jobs:
+  build_and_deploy:
+    name: Build and Deploy Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository so the workflow can access the source code.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up the Node.js version that matches the Functions runtime.
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      # Step 3: Install all npm dependencies defined in backend/package.json.
+      # The node_modules folder will be included in the deployment package.
+      - name: Install dependencies
+        working-directory: backend
+        run: npm install
+
+      # Step 4: Deploy the backend folder to the existing Azure Function App.
+      # AZURE_FUNCTIONAPP_PUBLISH_PROFILE is a GitHub Secret that contains the
+      # publish profile XML downloaded from the Azure Portal for this Function App.
+      # package       — folder that contains host.json and all function sub-directories.
+      # slot_name     — deploy to the production slot of the Function App.
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.FUNCTION_APP_NAME }}
+          slot-name: production
+          package: backend
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
