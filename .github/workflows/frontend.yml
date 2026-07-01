@@ -23,45 +23,27 @@ jobs:
         with:
           submodules: true
 
-      # Step 2: Set up Node.js. Matches the version expected by the Vite + React project.
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      # Step 3: Install all npm dependencies defined in frontend/package.json.
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm install
-
-      # Step 4: Build the Vite project. Output lands in frontend/dist.
-      - name: Build project
-        working-directory: frontend
-        run: npm run build
-
-      # Step 5: Deploy the pre-built assets to the existing Azure Static Web App.
-      # The API token is stored as a GitHub Secret (AZURE_STATIC_WEB_APPS_API_TOKEN).
-      # skip_app_build: true — prevents the action from running Oryx internally, since
-      #   we already built the app in the steps above. Without this flag, Oryx rebuilds
-      #   the app and looks for a 'build' folder instead of 'dist', causing a failure.
-      # app_location  — root of the frontend source (relative to repo root).
-      # output_location — folder produced by our build step, relative to app_location.
-      #   With skip_app_build, the action deploys frontend/dist directly.
+      # Step 2: Build and deploy via Azure Static Web Apps.
+      # The action invokes Oryx internally to run 'npm install' and 'npm run build'.
+      # app_location    — folder containing package.json (relative to repo root).
+      # output_location — build artifact folder relative to app_location. Vite is
+      #                   configured (vite.config.js build.outDir) to write to 'build/'
+      #                   so that it matches the folder Oryx expects for React projects.
+      # app_build_command — explicitly pass the build command so Oryx does not need to
+      #                     infer it; this also ensures output_location is honoured.
       # api_location is left empty because the API is hosted separately as an Azure Function.
-      - name: Deploy to Azure Static Web Apps
+      - name: Build and deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}   # Used by the action to comment on PRs.
           action: 'upload'
           app_location: 'frontend'
-          output_location: 'dist'
+          output_location: 'build'
           api_location: ''                          # No API co-located with the static app.
-          skip_app_build: true                      # Use the dist/ folder built above; skip Oryx.
+          app_build_command: 'npm run build'        # Explicit build command passed to Oryx.
 
-      # Step 6 (PR only): When a pull_request is closed the Static Web Apps staging
+      # Step 3 (PR only): When a pull_request is closed the Static Web Apps staging
       # environment for that PR is automatically torn down.
       - name: Close Pull Request staging environment
         if: github.event_name == 'pull_request' && github.event.action == 'closed'
