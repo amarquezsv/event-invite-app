@@ -1,0 +1,14 @@
+{
+  "name": "event-invite-app",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "dev:storage": "npx azurite --location .azurite --silent",
+    "dev:backend": "npm --prefix backend run start",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev": "concurrently --names \"STORE,API,WEB\" --prefix-colors \"yellow,cyan,magenta\" --kill-others-on-fail \"npm run dev:storage\" \"npm run dev:backend\" \"npm run dev:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

@@ -20,6 +20,9 @@ backend/.python_packages/
 backend/__pycache__/
 .funcignore
 
+# ─── Azurite local storage emulator data ─────────────────────────
+.azurite/
+
 # ─── OS / Editor ─────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
