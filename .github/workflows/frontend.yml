@@ -41,10 +41,14 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      # Step 5: Deploy the built assets to the existing Azure Static Web App.
+      # Step 5: Deploy the pre-built assets to the existing Azure Static Web App.
       # The API token is stored as a GitHub Secret (AZURE_STATIC_WEB_APPS_API_TOKEN).
+      # skip_app_build: true — prevents the action from running Oryx internally, since
+      #   we already built the app in the steps above. Without this flag, Oryx rebuilds
+      #   the app and looks for a 'build' folder instead of 'dist', causing a failure.
       # app_location  — root of the frontend source (relative to repo root).
-      # output_location — folder produced by the build step (relative to app_location).
+      # output_location — folder produced by our build step, relative to app_location.
+      #   With skip_app_build, the action deploys frontend/dist directly.
       # api_location is left empty because the API is hosted separately as an Azure Function.
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
@@ -55,6 +59,7 @@ jobs:
           app_location: 'frontend'
           output_location: 'dist'
           api_location: ''                          # No API co-located with the static app.
+          skip_app_build: true                      # Use the dist/ folder built above; skip Oryx.
 
       # Step 6 (PR only): When a pull_request is closed the Static Web Apps staging
       # environment for that PR is automatically torn down.
