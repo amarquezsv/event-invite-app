@@ -35,12 +35,16 @@ async function request(method, path, body) {
   }
 
   const res  = await fetch(`${API_BASE}${path}`, options)
+  // For list endpoints the body should always be JSON. If it isn't (e.g. an
+  // Azure error page), fall back to an empty object so non-2xx detection still
+  // works and array guards in components protect the render.
   const data = await res.json().catch(() => ({}))
 
   if (!res.ok) {
     throw new Error(data.error ?? `Request failed with status ${res.status}`)
   }
-  return data
+  // Ensure callers that expect an array never receive null/undefined.
+  return data ?? []
 }
 
 // ── Event configuration ──────────────────────────────────────────────────────

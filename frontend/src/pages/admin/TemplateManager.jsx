@@ -21,7 +21,7 @@ export default function TemplateManager() {
 
   useEffect(() => {
     getTemplates()
-      .then(setTemplates)
+      .then((data) => setTemplates(Array.isArray(data) ? data : []))
       .catch(() => setError('Failed to load templates.'))
       .finally(() => setLoading(false))
   }, [])

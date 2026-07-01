@@ -49,10 +49,11 @@ export default function EventConfig() {
           templateId:  cfg.templateId  ?? 'elegant',
         })
         // Merge built-in + custom templates from DB
-        if (customTpls.length > 0) {
+        const customArr = Array.isArray(customTpls) ? customTpls : []
+        if (customArr.length > 0) {
           setTemplates([
             ...BUILTIN_TEMPLATES,
-            ...customTpls.map((t) => ({ id: t.id, name: t.name })),
+            ...customArr.map((t) => ({ id: t.id, name: t.name })),
           ])
         }
       })

@@ -20,7 +20,7 @@ export default function Dashboard() {
   useEffect(() => {
     Promise.all([getGuests(), getEventConfig()])
       .then(([g, e]) => {
-        setGuests(g)
+        setGuests(Array.isArray(g) ? g : [])
         setEvent(e)
       })
       .catch(() => setError('Failed to load dashboard data.'))

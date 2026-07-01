@@ -32,7 +32,8 @@ export default function GuestManagement() {
   const loadGuests = useCallback(async () => {
     setLoading(true)
     try {
-      setGuests(await getGuests())
+      const data = await getGuests()
+      setGuests(Array.isArray(data) ? data : [])
     } catch {
       setError('Failed to load guests.')
     } finally {
