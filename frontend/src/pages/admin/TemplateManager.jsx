@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { getTemplates, addTemplate } from '../../services/api'
 
 /**
@@ -90,9 +91,17 @@ export default function TemplateManager() {
             >
               <p className="font-semibold text-slate-800 text-sm mb-0.5">{t.name}</p>
               <p className="text-xs text-slate-400 font-mono truncate">{t.id}</p>
-              <span className="mt-2 inline-block text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-medium">
-                custom
-              </span>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="inline-block text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-medium">
+                  custom
+                </span>
+                <Link
+                  to={`/admin/template-builder?id=${t.id}`}
+                  className="text-xs text-violet-600 hover:text-violet-800 font-medium underline underline-offset-2"
+                >
+                  Edit in Builder
+                </Link>
+              </div>
             </div>
           ))}
         </div>

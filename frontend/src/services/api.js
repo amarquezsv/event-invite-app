@@ -60,8 +60,16 @@ export const updateEventConfig = (data) => request('POST', '/event/config', data
 /** GET /api/templates — returns all custom templates stored in Cosmos DB. */
 export const getTemplates = () => request('GET', '/templates')
 
+/** GET /api/templates/{id} — returns a single template by ID. */
+export const getTemplateById = (id) =>
+  request('GET', `/templates/${encodeURIComponent(id)}`)
+
 /** POST /api/templates — creates a new custom template. */
 export const addTemplate = (data) => request('POST', '/templates', data)
+
+/** PUT /api/templates/{id} — updates an existing custom template. */
+export const updateTemplate = (id, data) =>
+  request('PUT', `/templates/${encodeURIComponent(id)}`, data)
 
 // ── Guests ───────────────────────────────────────────────────────────────────
 

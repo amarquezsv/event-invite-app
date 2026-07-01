@@ -14,7 +14,8 @@ import AdminLayout     from './components/admin/AdminLayout'
 import Dashboard       from './pages/admin/Dashboard'
 import EventConfig     from './pages/admin/EventConfig'
 import GuestManagement from './pages/admin/GuestManagement'
-import TemplateManager from './pages/admin/TemplateManager'
+import TemplateManager  from './pages/admin/TemplateManager'
+import TemplateBuilder  from './pages/admin/TemplateBuilder'
 
 /**
  * ProtectedRoute — redirects unauthenticated users to /admin/login.
@@ -80,7 +81,8 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="event"     element={<EventConfig />} />
             <Route path="guests"    element={<GuestManagement />} />
-            <Route path="templates" element={<TemplateManager />} />
+            <Route path="templates"        element={<TemplateManager />} />
+            <Route path="template-builder" element={<TemplateBuilder />} />
           </Route>
 
           {/* All public routes share the Header + Footer shell */}
