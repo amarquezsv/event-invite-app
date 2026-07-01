@@ -6,7 +6,7 @@
       "direction": "in",
       "name": "req",
       "methods": ["post"],
-      "route": "event/config"
+      "route": "_noop/event-config"
     },
     {
       "type": "http",

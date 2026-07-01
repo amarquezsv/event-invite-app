@@ -6,7 +6,7 @@
       "direction": "in",
       "name": "req",
       "methods": ["put"],
-      "route": "templates/{id}"
+      "route": "_noop/templates/{id}"
     },
     {
       "type": "http",
