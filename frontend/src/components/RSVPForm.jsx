@@ -1,20 +1,20 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { submitRsvp } from '../services/api'
 
 /**
- * RSVPForm — collects name, email, and attendance preference,
- * then POSTs to the Azure Function /rsvp endpoint.
+ * RSVPForm — legacy component. In the current system, guest attendance
+ * is confirmed via the personalised /invite/:guestId page. This form
+ * is kept as a reusable shell for future public RSVP flows.
+ *
+ * Props:
+ *   onSubmit(data)  — async handler called with { name, email, attending }
+ *   loading         — shows a spinner on the submit button when true
  */
-export default function RSVPForm() {
-  const navigate = useNavigate()
-
+export default function RSVPForm({ onSubmit, loading = false }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     attending: 'yes',
   })
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   function handleChange(e) {
@@ -24,16 +24,11 @@ export default function RSVPForm() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    setLoading(true)
     setError(null)
-
     try {
-      await submitRsvp(formData)
-      navigate('/confirmation')
+      if (onSubmit) await onSubmit(formData)
     } catch (err) {
-      setError('Failed to submit RSVP. Please try again.')
-    } finally {
-      setLoading(false)
+      setError(err?.message ?? 'Failed to submit. Please try again.')
     }
   }
 

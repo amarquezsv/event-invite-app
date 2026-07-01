@@ -32,7 +32,7 @@ export default function Header() {
             Home
           </NavLink>
           <NavLink
-            to="/invitation"
+            to="/admin"
             className={({ isActive }) =>
               `text-sm font-medium transition-colors ${
                 isActive
@@ -41,10 +41,11 @@ export default function Header() {
               }`
             }
           >
-            RSVP
+            Admin
           </NavLink>
         </nav>
       </div>
     </header>
   )
 }
+

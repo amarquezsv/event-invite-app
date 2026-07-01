@@ -1,9 +1,19 @@
-import { Link } from 'react-router-dom'
+import { useLocation, Link } from 'react-router-dom'
 
 /**
- * Confirmation page — shown after a successful RSVP submission.
+ * Confirmation — thank-you page shown after a guest confirms attendance.
+ *
+ * Receives guest and event data via React Router location state
+ * (passed by the Invitation page on successful confirmation).
+ * Falls back to generic copy when navigated to directly.
  */
 export default function Confirmation() {
+  const location  = useLocation()
+  const { guest, event } = location.state ?? {}
+
+  const firstName = guest?.name?.split(' ')[0]
+  const seatLabel = guest?.seats === 1 ? 'seat' : 'seats'
+
   return (
     <div className="max-w-lg mx-auto px-4 py-20 text-center">
       {/* Success icon */}
@@ -24,16 +34,29 @@ export default function Confirmation() {
         </svg>
       </div>
 
-      <h2 className="text-3xl font-bold text-slate-900 mb-3">You're all set!</h2>
-      <p className="text-slate-600 mb-8">
-        Thank you for your RSVP. We look forward to celebrating with you!
+      <h2 className="text-3xl font-bold text-slate-900 mb-3">
+        {firstName ? `See you there, ${firstName}!` : "You're all set!"}
+      </h2>
+
+      <p className="text-slate-600 mb-3">
+        {guest && event
+          ? `Your ${guest.seats} ${seatLabel} for ${event.name} are confirmed.`
+          : 'Your attendance has been confirmed. We look forward to celebrating with you!'}
       </p>
+
+      {event?.date && (
+        <p className="text-slate-400 text-sm mb-10">
+          {event.date}
+          {event.time && <span> · {event.time}</span>}
+          {event.location && <span> — {event.location}</span>}
+        </p>
+      )}
 
       <Link
         to="/"
-        className="inline-block rounded-full bg-violet-600 px-8 py-3 text-white font-semibold hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 transition-colors"
+        className="text-violet-600 hover:text-violet-700 text-sm font-medium transition-colors"
       >
-        Back to Home
+        ← Back to home
       </Link>
     </div>
   )

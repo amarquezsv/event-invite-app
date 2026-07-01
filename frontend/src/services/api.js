@@ -1,48 +1,97 @@
 /**
  * API service layer.
  *
- * All requests are sent to the Azure Function App base URL defined
- * in the VITE_API_URL environment variable. This value is injected
- * at build time by Vite and must be set in `.env` for local dev and
- * in Azure Static Web Apps settings for production.
+ * All requests target the Azure Function App whose base URL is provided
+ * by the VITE_API_URL environment variable (injected at build time by Vite).
+ *
+ * Local development — add to frontend/.env:
+ *   VITE_API_URL=http://localhost:7071/api
+ *
+ * Azure Static Web Apps — the /api prefix is automatically proxied to the
+ * linked Function App, so VITE_API_URL can be left as "/api" in production.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL
+const API_BASE = import.meta.env.VITE_API_URL ?? '/api'
+
+// ── Internal helper ─────────────────────────────────────────────────────────
 
 /**
- * Submit an RSVP to the backend.
+ * Thin wrapper around fetch that:
+ *  - Serialises the body to JSON when present
+ *  - Parses the JSON response
+ *  - Throws a descriptive Error on non-2xx responses
  *
- * @param {{ name: string, email: string, attending: 'yes' | 'no' }} data
- * @returns {Promise<{ message: string }>}
+ * @param {'GET'|'POST'|'PUT'|'DELETE'} method
+ * @param {string} path   — path appended to API_BASE (must start with /)
+ * @param {object} [body] — optional request body (serialised to JSON)
  */
-export async function submitRsvp(data) {
-  const response = await fetch(`${API_BASE}/rsvp`, {
-    method: 'POST',
+async function request(method, path, body) {
+  const options = {
+    method,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  })
-
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}))
-    throw new Error(errorBody.error || 'Failed to submit RSVP')
+  }
+  if (body !== undefined) {
+    options.body = JSON.stringify(body)
   }
 
-  return response.json()
+  const res  = await fetch(`${API_BASE}${path}`, options)
+  const data = await res.json().catch(() => ({}))
+
+  if (!res.ok) {
+    throw new Error(data.error ?? `Request failed with status ${res.status}`)
+  }
+  return data
 }
+
+// ── Event configuration ──────────────────────────────────────────────────────
+
+/** GET /api/event/config — returns the event config document. */
+export const getEventConfig = () => request('GET', '/event/config')
+
+/** POST /api/event/config — creates or replaces the event config document. */
+export const updateEventConfig = (data) => request('POST', '/event/config', data)
+
+// ── Templates ────────────────────────────────────────────────────────────────
+
+/** GET /api/templates — returns all custom templates stored in Cosmos DB. */
+export const getTemplates = () => request('GET', '/templates')
+
+/** POST /api/templates — creates a new custom template. */
+export const addTemplate = (data) => request('POST', '/templates', data)
+
+// ── Guests ───────────────────────────────────────────────────────────────────
+
+/** GET /api/guests — returns all guest records (admin only). */
+export const getGuests = () => request('GET', '/guests')
+
+/** POST /api/guests — creates a new guest record. */
+export const addGuest = (data) => request('POST', '/guests', data)
 
 /**
- * Fetch a guest record by ID.
- *
- * @param {string} id - The Cosmos DB document ID of the guest.
- * @returns {Promise<object>} Guest RSVP document.
+ * PUT /api/guests/{id} — partially updates a guest record.
+ * Only the fields present in `data` are modified.
  */
-export async function getGuest(id) {
-  const response = await fetch(`${API_BASE}/guest/${encodeURIComponent(id)}`)
+export const updateGuest = (id, data) =>
+  request('PUT', `/guests/${encodeURIComponent(id)}`, data)
 
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}))
-    throw new Error(errorBody.error || 'Guest not found')
-  }
+// ── Invitations & confirmation ───────────────────────────────────────────────
 
-  return response.json()
-}
+/**
+ * GET /api/invite/{id}
+ *
+ * Returns the guest record, event config, personalised invite link, and
+ * a pre-encoded WhatsApp deep-link URL — all in one call.
+ * Used by both the public invitation page and the admin guest table.
+ */
+export const generateInviteLink = (guestId) =>
+  request('GET', `/invite/${encodeURIComponent(guestId)}`)
+
+/**
+ * POST /api/confirm/{id}
+ *
+ * Marks a guest as confirmed. Idempotent — safe to call multiple times.
+ * Returns the updated guest document.
+ */
+export const confirmAttendance = (guestId) =>
+  request('POST', `/confirm/${encodeURIComponent(guestId)}`)
+

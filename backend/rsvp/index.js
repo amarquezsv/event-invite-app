@@ -40,7 +40,7 @@ module.exports = async function (context, req) {
   }
 
   try {
-    const container = await getContainer()
+    const container = await getContainer(process.env.COSMOS_CONTAINER_GUESTS)
 
     // Build the RSVP document
     const rsvpItem = {

@@ -19,7 +19,7 @@ module.exports = async function (context, req) {
   }
 
   try {
-    const container = await getContainer()
+    const container = await getContainer(process.env.COSMOS_CONTAINER_GUESTS)
 
     // Use a parameterised query to prevent injection
     const { resources } = await container.items
