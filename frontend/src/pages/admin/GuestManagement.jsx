@@ -38,6 +38,8 @@ export default function GuestManagement() {
   const [sendPageId,   setSendPageId]   = useState('')
   const [sendingInvite, setSendingInvite] = useState(false)
   const [sendWaUrl,    setSendWaUrl]    = useState(null)
+  // Pages available in the Send modal — loaded from the guest's own event
+  const [sendModalPages, setSendModalPages] = useState([])
 
   // New-guest form
   const EMPTY = { name: '', whatsapp: '', seats: 2, customNotes: '', invitationPageId: '' }
@@ -142,11 +144,27 @@ export default function GuestManagement() {
     setSendFormat(guest.invitationPageId ? 'custom' : 'classic')
     setSendPageId(guest.invitationPageId ?? '')
     setSendWaUrl(null)
+    setSendModalPages([])
+    // Load invitation pages for the guest's own event (not the list filter)
+    const guestEventId = guest.eventId || selectedEventId
+    if (guestEventId) {
+      listInvitationPages()
+        .then((pages) => {
+          const filtered = (Array.isArray(pages) ? pages : []).filter(
+            (p) => p.eventId === guestEventId
+          )
+          setSendModalPages(filtered)
+        })
+        .catch(() => setSendModalPages([]))
+    } else {
+      setSendModalPages([])
+    }
   }
 
   function closeSendModal() {
     setSendGuest(null)
     setSendWaUrl(null)
+    setSendModalPages([])
   }
 
   async function handlePrepareInvite() {
@@ -546,7 +564,7 @@ export default function GuestManagement() {
               </button>
               <button
                 onClick={() => { setSendFormat('custom'); setSendWaUrl(null) }}
-                disabled={invitationPages.length === 0}
+                disabled={sendModalPages.length === 0}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   sendFormat === 'custom'
                     ? 'bg-violet-600 text-white border-violet-600'
@@ -555,13 +573,13 @@ export default function GuestManagement() {
               >
                 Custom Template
                 <span className="block text-xs font-normal opacity-70">
-                  {invitationPages.length === 0 ? 'No templates for this event' : 'Invitation Editor'}
+                  {sendModalPages.length === 0 ? 'No templates for this event' : 'Invitation Editor'}
                 </span>
               </button>
             </div>
 
             {/* Template picker (custom only) */}
-            {sendFormat === 'custom' && invitationPages.length > 0 && (
+            {sendFormat === 'custom' && sendModalPages.length > 0 && (
               <div className="mb-4">
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                   Select Template
@@ -572,7 +590,7 @@ export default function GuestManagement() {
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                 >
                   <option value="">— Pick a template —</option>
-                  {invitationPages.map((p) => (
+                  {sendModalPages.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}{p.isActive ? ' ✓ active' : ''}
                     </option>
@@ -586,9 +604,9 @@ export default function GuestManagement() {
               <div className="mb-4">
                 <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3">
                   Ready! Click the button below to open WhatsApp.
-                  {sendFormat === 'custom' && (
+                  {sendFormat === 'custom' && sendPageId && (
                     <span className="block mt-0.5 text-green-600">
-                      The invitation will show the selected template.
+                      Template: <strong>{sendModalPages.find((p) => p.id === sendPageId)?.name ?? sendPageId}</strong>
                     </span>
                   )}
                 </p>

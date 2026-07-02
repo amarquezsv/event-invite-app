@@ -62,25 +62,39 @@ module.exports = async function (context, req) {
       template = templates[0] ?? null
     }
 
-    // Fetch the invitation page for this event — prefer active, fall back to most recent
+    // Fetch the invitation page — guest's pinned page takes priority over the active page
     let invitationPage = null
     try {
-      const { resources: activePages } = await pageContainer.items
-        .query({
-          query:      'SELECT TOP 1 * FROM c WHERE c.eventId = @eventId AND c.isActive = true',
-          parameters: [{ name: '@eventId', value: event.id }],
-        })
-        .fetchAll()
-      if (activePages?.length) {
-        invitationPage = activePages[0]
-      } else {
-        const { resources: pages } = await pageContainer.items
+      if (guest.invitationPageId) {
+        // Guest has a specific template assigned — fetch it directly
+        const { resources: pinned } = await pageContainer.items
           .query({
-            query:      'SELECT TOP 1 * FROM c WHERE c.eventId = @eventId ORDER BY c._ts DESC',
+            query:      'SELECT * FROM c WHERE c.id = @id',
+            parameters: [{ name: '@id', value: guest.invitationPageId }],
+          })
+          .fetchAll()
+        invitationPage = pinned[0] ?? null
+      }
+
+      if (!invitationPage) {
+        // Fall back to the active page for the event, then most recent
+        const { resources: activePages } = await pageContainer.items
+          .query({
+            query:      'SELECT TOP 1 * FROM c WHERE c.eventId = @eventId AND c.isActive = true',
             parameters: [{ name: '@eventId', value: event.id }],
           })
           .fetchAll()
-        invitationPage = pages[0] ?? null
+        if (activePages?.length) {
+          invitationPage = activePages[0]
+        } else {
+          const { resources: pages } = await pageContainer.items
+            .query({
+              query:      'SELECT TOP 1 * FROM c WHERE c.eventId = @eventId ORDER BY c._ts DESC',
+              parameters: [{ name: '@eventId', value: event.id }],
+            })
+            .fetchAll()
+          invitationPage = pages[0] ?? null
+        }
       }
     } catch (_) { /* non-fatal */ }
 
