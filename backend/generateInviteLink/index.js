@@ -108,10 +108,23 @@ module.exports = async function (context, req) {
           .fetchAll()
         invitationPages = allMeta ?? []
 
-        // Full HTML: guest's pinned page → event's active page → most recent
-        if (invitationPages.length > 0) {
-          const defaultId = guest.invitationPageId
-            || invitationPages.find((p) => p.isActive)?.id
+        // If the guest has a pinned page, fetch it directly — this must happen
+        // regardless of whether the event has other pages (invitationPages may be
+        // empty if the page's eventId doesn't match, which would otherwise skip
+        // the whole block and silently fall back to the classic template).
+        if (guest.invitationPageId) {
+          const { resources: pinned } = await pageContainer.items
+            .query({
+              query:      'SELECT * FROM c WHERE c.id = @id',
+              parameters: [{ name: '@id', value: guest.invitationPageId }],
+            })
+            .fetchAll()
+          invitationPage = pinned[0] ?? null
+        }
+
+        // No pinned page found — fall back to active page or most recent for this event
+        if (!invitationPage && invitationPages.length > 0) {
+          const defaultId = invitationPages.find((p) => p.isActive)?.id
             || invitationPages[0].id
           const { resources: full } = await pageContainer.items
             .query({
