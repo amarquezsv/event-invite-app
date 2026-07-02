@@ -63,7 +63,7 @@ module.exports = async function (context, req) {
       body: { name: safeName, url: blobUrl },
     }
   } catch (err) {
-    context.log.error('uploadInvitationAsset:', err.message)
+    context.log.error('uploadInvitationAsset error:', err.message, err.code ?? '', err.statusCode ?? '')
     context.res = { status: 500, body: { error: 'Failed to upload asset.' } }
   }
 }

@@ -21,17 +21,31 @@ function getBlobServiceClient() {
 }
 
 /**
- * Returns a reference to the invitations blob container, creating it
- * (with public blob access) if it does not yet exist.
+ * Returns a reference to the invitations blob container, creating it if it
+ * does not yet exist.  Attempts to enable public blob access; if the storage
+ * account has disabled it at the account level (PublicAccessNotPermitted /
+ * AllowBlobPublicAccess=false), falls back to creating without public access.
  *
  * @returns {Promise<import('@azure/storage-blob').ContainerClient>}
  */
 async function getInvitationsContainer() {
-  const containerName  = process.env.BLOB_CONTAINER_INVITATIONS ?? 'invitations'
-  const serviceClient  = getBlobServiceClient()
+  const containerName   = process.env.BLOB_CONTAINER_INVITATIONS ?? 'invitations'
+  const serviceClient   = getBlobServiceClient()
   const containerClient = serviceClient.getContainerClient(containerName)
-  // 'blob' access level makes individual blobs publicly readable
-  await containerClient.createIfNotExists({ access: 'blob' })
+
+  try {
+    // 'blob' access level makes individual blobs publicly readable
+    await containerClient.createIfNotExists({ access: 'blob' })
+  } catch (err) {
+    // Azure Storage accounts created after late 2023 disable blob public
+    // access by default.  Fall back to creating without public access.
+    if (err.code === 'PublicAccessNotPermitted' || err.statusCode === 409) {
+      await containerClient.createIfNotExists()
+    } else {
+      throw err
+    }
+  }
+
   return containerClient
 }
 
