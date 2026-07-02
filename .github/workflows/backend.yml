@@ -1,15 +1,17 @@
 # Backend CI/CD Workflow — Azure Functions (Node.js)
-# Triggers on push or pull_request targeting the master branch.
+# DISABLED: the backend is now co-deployed with the frontend via the
+# azure-static-web-apps-brave-coast workflow (api_location: ./backend).
+# Keeping this file for reference; trigger points at a non-existent branch.
 
 name: Backend — Deploy to Azure Functions
 
 on:
   push:
     branches:
-      - master
+      - _disabled
   pull_request:
     branches:
-      - master
+      - _disabled
 
 env:
   # The name of the existing Azure Function App to deploy to.
