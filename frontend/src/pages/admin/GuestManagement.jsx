@@ -42,6 +42,8 @@ export default function GuestManagement() {
   const [sendModalPages, setSendModalPages] = useState([])
   // Full-screen template preview overlay inside the modal
   const [previewPageId, setPreviewPageId] = useState(null)
+  // invitationPageId confirmed saved in DB after last prepare
+  const [savedInvitationPageId, setSavedInvitationPageId] = useState(null)
 
   // New-guest form
   const EMPTY = { name: '', whatsapp: '', seats: 2, customNotes: '', invitationPageId: '' }
@@ -147,6 +149,8 @@ export default function GuestManagement() {
     setSendPageId(guest.invitationPageId ?? '')
     setSendWaUrl(null)
     setSendModalPages([])
+    setSavedInvitationPageId(null)
+    setPreviewPageId(null)
     // Load invitation pages for the guest's own event (not the list filter)
     const guestEventId = guest.eventId || selectedEventId
     if (guestEventId) {
@@ -168,6 +172,7 @@ export default function GuestManagement() {
     setSendWaUrl(null)
     setSendModalPages([])
     setPreviewPageId(null)
+    setSavedInvitationPageId(null)
   }
 
   async function handlePrepareInvite() {
@@ -178,6 +183,8 @@ export default function GuestManagement() {
       const pageId = sendFormat === 'custom' ? (sendPageId || null) : null
       const updated = await updateGuest(sendGuest.id, { invitationPageId: pageId })
       setGuests((prev) => prev.map((g) => (g.id === sendGuest.id ? updated : g)))
+      // Record what was actually persisted in the DB so the success UI can confirm it
+      setSavedInvitationPageId(updated.invitationPageId ?? null)
 
       // Generate the WhatsApp URL
       const data = sendGuest.eventId
@@ -646,13 +653,26 @@ export default function GuestManagement() {
               <div className="mb-4">
                 <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3">
                   Ready! Click the button below to open WhatsApp.
-                  {sendFormat === 'custom' && sendPageId && (
+                  {savedInvitationPageId ? (
                     <span className="block mt-0.5 text-green-600">
-                      Template: <strong>{sendModalPages.find((p) => p.id === sendPageId)?.name ?? sendPageId}</strong>
+                      Template saved: <strong>{sendModalPages.find((p) => p.id === savedInvitationPageId)?.name ?? savedInvitationPageId}</strong>
                     </span>
-                  )}
+                  ) : sendFormat === 'classic' ? (
+                    <span className="block mt-0.5 text-green-600">Using classic built-in poster.</span>
+                  ) : null}
                 </p>
                 <WhatsAppButton whatsappUrl={sendWaUrl} />
+                {/* Verify link — opens the exact URL the guest will receive */}
+                {sendGuest && (
+                  <a
+                    href={`/invite/${encodeURIComponent(sendGuest.id)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 transition-colors"
+                  >
+                    🔗 Verify guest view ↗
+                  </a>
+                )}
               </div>
             ) : (
               <button
