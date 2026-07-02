@@ -94,28 +94,9 @@ export default function Invitation() {
   const { guest, event, template, tokenMap, invitationPages } = data
   const alreadyConfirmed = guest?.confirmed
 
-  // ── Template picker (shown when the event has multiple invitation pages) ────
-
-  const showPicker = invitationPages?.length > 1
-
-  const templatePicker = showPicker ? (
-    <div className="fixed top-0 left-0 right-0 z-40 bg-white/90 backdrop-blur border-b border-slate-100 px-3 py-2 flex gap-2 overflow-x-auto">
-      {invitationPages.map((p) => (
-        <button
-          key={p.id}
-          onClick={() => handleSelectPage(p.id)}
-          disabled={loadingPage}
-          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-            selectedPage?.id === p.id
-              ? 'bg-violet-600 text-white shadow-sm'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-          }`}
-        >
-          {loadingPage && selectedPage?.id !== p.id ? p.name : p.name}
-        </button>
-      ))}
-    </div>
-  ) : null
+  // Template picker removed — guests always see their assigned template only
+  const showPicker = false
+  const templatePicker = null
 
   // ── Full HTML invitation page (admin-designed) ───────────────────────────
   // Takes precedence over the legacy template / built-in poster.
