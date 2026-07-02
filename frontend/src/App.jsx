@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext'
 import Header from './components/Header'
 import Footer from './components/Footer'
@@ -52,17 +52,15 @@ function PublicShell() {
 }
 
 /**
- * InvitationShell — bare wrapper for guest-facing invitation routes.
+ * InvitationShell — layout wrapper for guest-facing routes.
  * No header, no navigation — guests only see the invitation and a minimal footer.
+ * Uses <Outlet /> so React Router resolves child route paths correctly.
  */
 function InvitationShell() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       <main className="flex-1">
-        <Routes>
-          <Route path="/invite/:guestId" element={<Invitation />} />
-          <Route path="/confirmed"       element={<Confirmation />} />
-        </Routes>
+        <Outlet />
       </main>
       {/* pb-20 keeps the text above the sticky CTA bar on the invite route */}
       <footer className="py-6 pb-20 text-center border-t border-slate-200 bg-white">
@@ -122,9 +120,11 @@ export default function App() {
           {/* Full-screen public invitation page — no shell, no nav */}
           <Route path="/page/:id" element={<InvitationPage />} />
 
-          {/* Guest-facing invitation routes — no header, no footer, no nav */}
-          <Route path="/invite/*" element={<InvitationShell />} />
-          <Route path="/confirmed" element={<InvitationShell />} />
+          {/* Guest-facing invitation routes — layout route ensures correct path matching */}
+          <Route element={<InvitationShell />}>
+            <Route path="/invite/:guestId" element={<Invitation />} />
+            <Route path="/confirmed"        element={<Confirmation />} />
+          </Route>
 
           {/* All remaining public routes share the Header + Footer shell */}
           <Route path="/*" element={<PublicShell />} />
