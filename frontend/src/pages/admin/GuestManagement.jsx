@@ -129,31 +129,41 @@ export default function GuestManagement() {
               placeholder="Jane Doe"
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
+            <div className="mt-1 h-4" />
           </div>
 
           <div className="flex-1 min-w-44">
             <label className="block text-xs font-medium text-slate-600 mb-1">
               WhatsApp Number <span className="text-red-500">*</span>
             </label>
-            <input
-              name="whatsapp"
-              value={form.whatsapp}
-              onChange={handleFormChange}
-              required
-              placeholder="+503 7712 3456"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-            />
-            {(() => {
-              const country = getCountryFromPhone(form.whatsapp)
-              return country ? (
-                <p className="mt-1 text-xs text-slate-500 flex items-center gap-1">
-                  <span>{country.flag}</span>
-                  <span>{country.name}</span>
-                </p>
-              ) : form.whatsapp.length > 0 ? (
-                <p className="mt-1 text-xs text-slate-400">Unknown country code</p>
-              ) : null
-            })()}
+            <div className="relative">
+              <input
+                name="whatsapp"
+                value={form.whatsapp}
+                onChange={handleFormChange}
+                required
+                placeholder="+503 7712 3456"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+              {/* Fixed-height hint — always occupies space so the form row never shifts */}
+              <div className="mt-1 h-4">
+                {(() => {
+                  const country = getCountryFromPhone(form.whatsapp)
+                  if (country) {
+                    return (
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-500 leading-none">
+                        <span className="text-sm leading-none">{country.flag}</span>
+                        <span>{country.name}</span>
+                      </span>
+                    )
+                  }
+                  if (form.whatsapp.length > 0) {
+                    return <span className="text-xs text-slate-400 leading-none">Unknown country code</span>
+                  }
+                  return null
+                })()}
+              </div>
+            </div>
           </div>
 
           <div className="w-24">
@@ -170,12 +180,13 @@ export default function GuestManagement() {
               required
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
+            <div className="mt-1 h-4" />
           </div>
 
           <button
             type="submit"
             disabled={adding}
-            className="bg-violet-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-violet-700 disabled:opacity-60 transition-colors text-sm whitespace-nowrap"
+            className="bg-violet-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-violet-700 disabled:opacity-60 transition-colors text-sm whitespace-nowrap mb-5"
           >
             {adding ? 'Adding…' : '+ Add Guest'}
           </button>
@@ -216,7 +227,20 @@ export default function GuestManagement() {
                       {g.name}
                     </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
-                      {g.whatsapp}
+                      <div className="inline-flex items-center gap-1.5">
+                        {(() => {
+                          const country = getCountryFromPhone(g.whatsapp)
+                          return country ? (
+                            <span
+                              className="text-base leading-none shrink-0"
+                              title={country.name}
+                            >
+                              {country.flag}
+                            </span>
+                          ) : null
+                        })()}
+                        <span>{g.whatsapp}</span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-slate-600">{g.seats}</td>
                     <td className="px-4 py-3">
