@@ -16,7 +16,7 @@ module.exports = async function (context, req) {
 
   let container
   try {
-    container = await getContainer(process.env.COSMOS_CONTAINER_INVITATION_PAGES)
+    container = await getContainer((process.env.COSMOS_CONTAINER_INVITATION_PAGES ?? 'invitation-pages'))
   } catch (err) {
     context.log.error('invitationPageById container:', err.message)
     context.res = { status: 500, body: { error: 'Storage unavailable.' } }

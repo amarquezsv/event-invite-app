@@ -22,7 +22,7 @@ module.exports = async function (context, req) {
   }
 
   try {
-    const container = await getContainer(process.env.COSMOS_CONTAINER_INVITATION_PAGES)
+    const container = await getContainer((process.env.COSMOS_CONTAINER_INVITATION_PAGES ?? 'invitation-pages'))
     const { resources } = await container.items
       .query({
         query:      'SELECT * FROM c WHERE c.id = @id',

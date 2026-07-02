@@ -97,7 +97,7 @@ module.exports = async function (context, req) {
     let invitationPages = []
     if (event.id) {
       try {
-        const pageContainer = await getContainer(process.env.COSMOS_CONTAINER_INVITATION_PAGES)
+        const pageContainer = await getContainer((process.env.COSMOS_CONTAINER_INVITATION_PAGES ?? 'invitation-pages'))
 
         // Light metadata query for the template picker
         const { resources: allMeta } = await pageContainer.items

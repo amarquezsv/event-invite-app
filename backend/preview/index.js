@@ -20,7 +20,7 @@ module.exports = async function (context, req) {
       getContainer(process.env.COSMOS_CONTAINER_GUESTS),
       getContainer(process.env.COSMOS_CONTAINER_EVENTS),
       getContainer(process.env.COSMOS_CONTAINER_TEMPLATES),
-      getContainer(process.env.COSMOS_CONTAINER_INVITATION_PAGES),
+      getContainer((process.env.COSMOS_CONTAINER_INVITATION_PAGES ?? 'invitation-pages')),
     ])
 
     const [{ resources: guests }, { resources: events }] = await Promise.all([

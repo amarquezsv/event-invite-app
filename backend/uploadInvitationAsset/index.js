@@ -42,7 +42,7 @@ module.exports = async function (context, req) {
     const blobUrl = await uploadBlob(blobPath, buffer, contentType ?? 'application/octet-stream')
 
     // Persist asset metadata on the invitation page document
-    const container = await getContainer(process.env.COSMOS_CONTAINER_INVITATION_PAGES)
+    const container = await getContainer((process.env.COSMOS_CONTAINER_INVITATION_PAGES ?? 'invitation-pages'))
     const { resources } = await container.items
       .query({
         query:      'SELECT * FROM c WHERE c.id = @id',

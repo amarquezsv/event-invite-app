@@ -18,7 +18,7 @@ module.exports = async function (context, req) {
   }
 
   try {
-    const container = await getContainer(process.env.COSMOS_CONTAINER_INVITATION_PAGES)
+    const container = await getContainer((process.env.COSMOS_CONTAINER_INVITATION_PAGES ?? 'invitation-pages'))
 
     // Fetch the target page
     const { resources: targets } = await container.items

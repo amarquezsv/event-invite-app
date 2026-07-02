@@ -10,7 +10,7 @@ module.exports = async function (context, req) {
   // ── GET — list ────────────────────────────────────────────────
   if (method === 'GET') {
     try {
-      const container = await getContainer(process.env.COSMOS_CONTAINER_INVITATION_PAGES)
+      const container = await getContainer((process.env.COSMOS_CONTAINER_INVITATION_PAGES ?? 'invitation-pages'))
       const { resources } = await container.items
         .query('SELECT c.id, c.name, c.eventId, c.assets, c.isActive, c.createdAt, c.updatedAt FROM c ORDER BY c._ts DESC')
         .fetchAll()
@@ -40,7 +40,7 @@ module.exports = async function (context, req) {
     }
 
     try {
-      const container = await getContainer(process.env.COSMOS_CONTAINER_INVITATION_PAGES)
+      const container = await getContainer((process.env.COSMOS_CONTAINER_INVITATION_PAGES ?? 'invitation-pages'))
       const doc = {
         id:        `inv-page-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         name:      name.trim(),
