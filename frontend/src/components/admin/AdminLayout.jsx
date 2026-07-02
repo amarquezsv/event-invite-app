@@ -1,15 +1,16 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAdminAuth } from '../../context/AdminAuthContext'
+import { useLang } from '../../context/LanguageContext'
 
-const NAV_ITEMS = [
-  { to: '/admin/dashboard',          label: 'Dashboard' },
-  { to: '/admin/events',             label: 'Events' },
-  { to: '/admin/guests',             label: 'Guests' },
-  { to: '/admin/invitation-editor',  label: 'Invitations' },
-  { to: '/admin/templates',          label: 'Templates' },
-  { to: '/admin/template-builder',   label: 'Builder' },
-  { to: '/admin/components',         label: 'Components' },
-  { to: '/admin/event',              label: 'Legacy Config' },
+const NAV_KEYS = [
+  { to: '/admin/dashboard',         key: 'nav.dashboard' },
+  { to: '/admin/events',            key: 'nav.events' },
+  { to: '/admin/guests',            key: 'nav.guests' },
+  { to: '/admin/invitation-editor', key: 'nav.invitations' },
+  { to: '/admin/templates',         key: 'nav.templates' },
+  { to: '/admin/template-builder',  key: 'nav.builder' },
+  { to: '/admin/components',        key: 'nav.components' },
+  { to: '/admin/event',             key: 'nav.legacyConfig' },
 ]
 
 /**
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
 export default function AdminLayout() {
   const { logout } = useAdminAuth()
   const navigate   = useNavigate()
+  const { lang, toggleLang, t } = useLang()
 
   function handleLogout() {
     logout()
@@ -33,12 +35,22 @@ export default function AdminLayout() {
           <span className="font-bold text-lg tracking-tight">
             EventInvite · Admin
           </span>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-violet-200 hover:text-white transition-colors"
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Language toggle */}
+            <button
+              onClick={toggleLang}
+              title={lang === 'es' ? 'Switch to English' : 'Cambiar a Español'}
+              className="text-xs font-bold text-violet-200 hover:text-white border border-violet-400 hover:border-white rounded px-2 py-0.5 transition-colors"
+            >
+              {lang === 'es' ? '🇺🇸 EN' : '🇪🇸 ES'}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="text-sm text-violet-200 hover:text-white transition-colors"
+            >
+              {t('common.logout')}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -47,7 +59,7 @@ export default function AdminLayout() {
         {/* Sidebar — hidden on small screens */}
         <aside className="w-44 shrink-0 hidden sm:block">
           <nav className="space-y-1" aria-label="Admin navigation">
-            {NAV_ITEMS.map(({ to, label }) => (
+            {NAV_KEYS.map(({ to, key }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -59,7 +71,7 @@ export default function AdminLayout() {
                   }`
                 }
               >
-                {label}
+                {t(key)}
               </NavLink>
             ))}
           </nav>
@@ -67,7 +79,7 @@ export default function AdminLayout() {
 
         {/* Mobile tab bar */}
         <div className="sm:hidden w-full fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex z-50">
-          {NAV_ITEMS.map(({ to, label }) => (
+          {NAV_KEYS.map(({ to, key }) => (
             <NavLink
               key={to}
               to={to}
@@ -77,7 +89,7 @@ export default function AdminLayout() {
                 }`
               }
             >
-              {label}
+              {t(key)}
             </NavLink>
           ))}
         </div>

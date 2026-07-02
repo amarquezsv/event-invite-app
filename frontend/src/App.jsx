@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext'
+import { LanguageProvider } from './context/LanguageContext'
 import Header from './components/Header'
 import Footer from './components/Footer'
 
@@ -91,6 +92,7 @@ function InvitationShell() {
  */
 export default function App() {
   return (
+    <LanguageProvider>
     <AdminAuthProvider>
       <BrowserRouter>
         <Routes>
@@ -131,6 +133,7 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AdminAuthProvider>
+    </LanguageProvider>
   )
 }
 

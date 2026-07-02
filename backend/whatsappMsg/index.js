@@ -49,15 +49,28 @@ module.exports = async function (context, req) {
 
     const baseUrl    = (process.env.APP_BASE_URL ?? '').replace(/\/$/, '')
     const inviteLink = guest.inviteLink ?? `${baseUrl}/invite/${guest.id}`
-    const seatLabel  = guest.seats === 1 ? 'seat' : 'seats'
 
-    const lines = [
-      `Hello ${guest.name}, you have ${guest.seats} ${seatLabel} reserved for ${event.name}.`,
-    ]
-    if (event.date) lines.push(`📅 ${event.date}${event.time ? ` at ${event.time}` : ''}`)
+    // lang query param: 'en' = English, anything else = Spanish (default)
+    const lang = req.query?.lang === 'en' ? 'en' : 'es'
+
+    const seatWord = lang === 'es'
+      ? (guest.seats === 1 ? 'lugar' : 'lugares')
+      : (guest.seats === 1 ? 'seat'  : 'seats')
+
+    const lines = lang === 'es'
+      ? [`Hola ${guest.name}, tienes ${guest.seats} ${seatWord} reservado${guest.seats !== 1 ? 's' : ''} para ${event.name}.`]
+      : [`Hello ${guest.name}, you have ${guest.seats} ${seatWord} reserved for ${event.name}.`]
+
+    if (event.date) {
+      lines.push(lang === 'es'
+        ? `📅 ${event.date}${event.time ? ` a las ${event.time}` : ''}`
+        : `📅 ${event.date}${event.time ? ` at ${event.time}` : ''}`)
+    }
     if (event.location) lines.push(`📍 ${event.location}`)
     if (guest.customNotes) lines.push(`📝 ${guest.customNotes}`)
-    lines.push(`Please confirm your attendance here: ${inviteLink}`)
+    lines.push(lang === 'es'
+      ? `Por favor confirma tu asistencia aquí: ${inviteLink}`
+      : `Please confirm your attendance here: ${inviteLink}`)
 
     const message     = lines.join('\n')
     const whatsappUrl = `https://wa.me/${guest.whatsapp}?text=${encodeURIComponent(message)}`

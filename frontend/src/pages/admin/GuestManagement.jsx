@@ -6,6 +6,7 @@ import {
 } from '../../services/api'
 import WhatsAppButton from '../../components/admin/WhatsAppButton'
 import { getCountryFromPhone } from '../../utils/phoneCountry'
+import { useLang } from '../../context/LanguageContext'
 
 /**
  * GuestManagement — admin page for managing guests across all events.
@@ -44,6 +45,10 @@ export default function GuestManagement() {
   const [previewPageId, setPreviewPageId] = useState(null)
   // invitationPageId confirmed saved in DB after last prepare
   const [savedInvitationPageId, setSavedInvitationPageId] = useState(null)
+  // Language for the WhatsApp message (independent of the UI language)
+  const [sendLang, setSendLang] = useState('es')
+
+  const { lang, t } = useLang()
 
   // New-guest form
   const EMPTY = { name: '', whatsapp: '', seats: 2, customNotes: '', invitationPageId: '' }
@@ -87,7 +92,7 @@ export default function GuestManagement() {
       const data = await getGuests(selectedEventId || undefined)
       setGuests(Array.isArray(data) ? data : [])
     } catch {
-      setError('Failed to load guests.')
+      setError(t('guests.failedLoad'))
     } finally {
       setLoading(false)
     }
@@ -127,7 +132,7 @@ export default function GuestManagement() {
       const updated = await updateGuest(guest.id, { confirmed: !guest.confirmed })
       setGuests((prev) => prev.map((g) => (g.id === guest.id ? updated : g)))
     } catch {
-      alert('Failed to update guest status.')
+      alert(t('guests.failedUpdateStatus'))
     }
   }
 
@@ -136,7 +141,7 @@ export default function GuestManagement() {
       const updated = await updateGuest(guestId, { invitationPageId: invitationPageId || null })
       setGuests((prev) => prev.map((g) => (g.id === guestId ? updated : g)))
     } catch {
-      alert('Failed to update template.')
+      alert(t('guests.failedUpdateTemplate'))
     }
   }
 
@@ -151,6 +156,7 @@ export default function GuestManagement() {
     setSendModalPages([])
     setSavedInvitationPageId(null)
     setPreviewPageId(null)
+    setSendLang(lang) // default WA message language to current UI language
     // Load invitation pages for the guest's own event (not the list filter)
     const guestEventId = guest.eventId || selectedEventId
     if (guestEventId) {
@@ -186,13 +192,13 @@ export default function GuestManagement() {
       // Record what was actually persisted in the DB so the success UI can confirm it
       setSavedInvitationPageId(updated.invitationPageId ?? null)
 
-      // Generate the WhatsApp URL
+      // Generate the WhatsApp URL in the selected language
       const data = sendGuest.eventId
-        ? await generateWhatsAppMsg(sendGuest.eventId, sendGuest.id)
-        : await generateInviteLink(sendGuest.id)
+        ? await generateWhatsAppMsg(sendGuest.eventId, sendGuest.id, sendLang)
+        : await generateInviteLink(sendGuest.id, sendLang)
       setSendWaUrl(data.whatsappUrl)
     } catch {
-      alert('Failed to prepare invite.')
+      alert(t('guests.failedPrepareInvite'))
     } finally {
       setSendingInvite(false)
     }
@@ -207,8 +213,8 @@ export default function GuestManagement() {
   function copyLink(link) {
     navigator.clipboard
       .writeText(link)
-      .then(() => alert('Invitation link copied!'))
-      .catch(() => alert(`Link: ${link}`))
+      .then(() => alert(t('guests.linkCopied')))
+      .catch(() => alert(`${t('guests.linkLabel')}: ${link}`))
   }
 
   const selectedEvent = events.find((e) => e.id === selectedEventId)
@@ -216,26 +222,26 @@ export default function GuestManagement() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-slate-900">Guest Management</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t('guests.title')}</h1>
         <Link
           to="/admin/events"
           className="text-sm text-violet-600 hover:text-violet-800"
         >
-          ← All Events
+          {t('guests.allEvents')}
         </Link>
       </div>
 
       {/* Event selector */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 mb-5">
         <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
-          Filter by Event
+          {t('guests.filterByEvent')}
         </label>
         <select
           value={selectedEventId}
           onChange={(e) => setSelectedEventId(e.target.value)}
           className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-400"
         >
-          <option value="">— All events —</option>
+          <option value="">{t('guests.allEventsOption')}</option>
           {events.map((evt) => (
             <option key={evt.id} value={evt.id}>
               {evt.name} {evt.date ? `· ${evt.date}` : ''}
@@ -258,7 +264,7 @@ export default function GuestManagement() {
 
       {/* Add guest form */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
-        <h2 className="text-base font-semibold text-slate-800 mb-4">Add New Guest</h2>
+        <h2 className="text-base font-semibold text-slate-800 mb-4">{t('guests.addNewGuest')}</h2>
 
         {formError && (
           <p className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -269,7 +275,7 @@ export default function GuestManagement() {
         <form onSubmit={handleAddGuest} className="flex flex-wrap gap-3 items-end">
           <div className="flex-1 min-w-44">
             <label className="block text-xs font-medium text-slate-600 mb-1">
-              Full Name <span className="text-red-500">*</span>
+              {t('guests.fullName')} <span className="text-red-500">*</span>
             </label>
             <input
               name="name"
@@ -283,7 +289,7 @@ export default function GuestManagement() {
 
           <div className="flex-1 min-w-44">
             <label className="block text-xs font-medium text-slate-600 mb-1">
-              WhatsApp Number <span className="text-red-500">*</span>
+              {t('guests.whatsappNumber')} <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <input
@@ -304,7 +310,7 @@ export default function GuestManagement() {
                         <span>{country.name}</span>
                       </span>
                     ) : (
-                      <span className="text-xs text-slate-400 leading-none">Unknown country code</span>
+                      <span className="text-xs text-slate-400 leading-none">{t('guests.unknownCountry')}</span>
                     )
                   })()}
                 </div>
@@ -314,7 +320,7 @@ export default function GuestManagement() {
 
           <div className="w-24">
             <label className="block text-xs font-medium text-slate-600 mb-1">
-              Seats <span className="text-red-500">*</span>
+              {t('guests.seats')} <span className="text-red-500">*</span>
             </label>
             <input
               name="seats"
@@ -330,7 +336,7 @@ export default function GuestManagement() {
 
           <div className="flex-1 min-w-44">
             <label className="block text-xs font-medium text-slate-600 mb-1">
-              Custom Notes
+              {t('guests.customNotes')}
             </label>
             <input
               name="customNotes"
@@ -345,7 +351,7 @@ export default function GuestManagement() {
           {selectedEventId && invitationPages.length > 0 && (
             <div className="flex-1 min-w-44">
               <label className="block text-xs font-medium text-slate-600 mb-1">
-                Invitation Template
+                {t('guests.invitationTemplate')}
               </label>
               <select
                 name="invitationPageId"
@@ -353,7 +359,7 @@ export default function GuestManagement() {
                 onChange={handleFormChange}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               >
-                <option value="">— Event default —</option>
+                <option value="">{t('guests.eventDefault')}</option>
                 {invitationPages.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}{p.isActive ? ' ✓' : ''}
@@ -368,7 +374,7 @@ export default function GuestManagement() {
             disabled={adding}
             className="bg-violet-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-violet-700 disabled:opacity-60 transition-colors text-sm whitespace-nowrap self-end mb-0.5"
           >
-            {adding ? 'Adding…' : '+ Add Guest'}
+            {adding ? t('guests.adding') : t('guests.addGuest')}
           </button>
         </form>
       </div>
@@ -377,12 +383,12 @@ export default function GuestManagement() {
       {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
       {loading ? (
-        <p className="text-slate-400 animate-pulse text-sm">Loading guests…</p>
+        <p className="text-slate-400 animate-pulse text-sm">{t('guests.loadingGuests')}</p>
       ) : guests.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
           <p className="text-4xl mb-2">👥</p>
           <p className="text-slate-400 text-sm">
-            No guests yet. Add your first guest above.
+            {t('guests.noGuests')}
           </p>
         </div>
       ) : (
@@ -391,9 +397,11 @@ export default function GuestManagement() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {['Name', 'WhatsApp', 'Seats', 'Notes',
-                    ...(invitationPages.length > 0 ? ['Template'] : []),
-                    'Status', 'Actions'].map((h) => (
+                  {[
+                    t('guests.colName'), t('guests.colWA'), t('guests.colSeats'), t('guests.colNotes'),
+                    ...(invitationPages.length > 0 ? [t('guests.colTemplate')] : []),
+                    t('guests.colStatus'), t('guests.colActions'),
+                  ].map((h) => (
                     <th
                       key={h}
                       className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
@@ -438,7 +446,7 @@ export default function GuestManagement() {
                           onChange={(e) => handleTemplateChange(g.id, e.target.value)}
                           className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-violet-400 max-w-35"
                         >
-                          <option value="">Default</option>
+                          <option value="">{t('guests.defaultTemplate')}</option>
                           {invitationPages.map((p) => (
                             <option key={p.id} value={p.id}>
                               {p.name}{p.isActive ? ' ✓' : ''}
@@ -457,7 +465,7 @@ export default function GuestManagement() {
                         }`}
                         title="Click to toggle status"
                       >
-                        {g.confirmed ? 'Confirmed' : 'Pending'}
+                        {g.confirmed ? t('guests.confirmed') : t('guests.pending')}
                       </button>
                     </td>
                     <td className="px-4 py-3">
@@ -469,7 +477,7 @@ export default function GuestManagement() {
                             target="_blank"
                             className="text-xs text-violet-600 hover:text-violet-800 font-medium whitespace-nowrap"
                           >
-                            Preview
+                            {t('guests.preview')}
                           </Link>
                         ) : (
                           <a
@@ -478,7 +486,7 @@ export default function GuestManagement() {
                             rel="noreferrer"
                             className="text-xs text-violet-600 hover:text-violet-800 font-medium whitespace-nowrap"
                           >
-                            Preview
+                            {t('guests.preview')}
                           </a>
                         )}
 
@@ -487,7 +495,7 @@ export default function GuestManagement() {
                           onClick={() => copyLink(g.inviteLink)}
                           className="text-xs text-slate-500 hover:text-slate-700 font-medium whitespace-nowrap"
                         >
-                          Copy Link
+                          {t('guests.copyLink')}
                         </button>
 
                         {/* WhatsApp / Send Invite */}
@@ -495,7 +503,7 @@ export default function GuestManagement() {
                           onClick={() => openSendModal(g)}
                           className="text-xs bg-green-600 text-white px-2.5 py-1 rounded-full font-semibold hover:bg-green-700 transition-colors whitespace-nowrap"
                         >
-                          Send Invite ↗
+                          {t('guests.sendInvite')}
                         </button>
 
                         {/* Delete */}
@@ -503,7 +511,7 @@ export default function GuestManagement() {
                           onClick={() => setDeleting(g.id)}
                           className="text-xs text-red-400 hover:text-red-600 font-medium whitespace-nowrap"
                         >
-                          Delete
+                          {t('guests.deleteBtn')}
                         </button>
                       </div>
                     </td>
@@ -514,7 +522,7 @@ export default function GuestManagement() {
           </div>
           <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
             <p className="text-xs text-slate-400">
-              {guests.length} guest{guests.length !== 1 ? 's' : ''} total
+              {t('guests.guestTotal', { n: guests.length })}
               {selectedEvent && ` · ${selectedEvent.name}`}
             </p>
           </div>
@@ -526,20 +534,20 @@ export default function GuestManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/30" onClick={() => setDeleting(null)} />
           <div className="relative bg-white rounded-2xl p-6 shadow-xl max-w-sm w-full">
-            <h3 className="font-bold text-slate-900 mb-2">Delete guest?</h3>
-            <p className="text-sm text-slate-500 mb-5">This cannot be undone.</p>
+            <h3 className="font-bold text-slate-900 mb-2">{t('guests.deleteConfirm')}</h3>
+            <p className="text-sm text-slate-500 mb-5">{t('guests.deleteWarning')}</p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDeleting(null)}
                 className="px-4 py-2 rounded-lg border border-slate-200 text-sm"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => handleDelete(deleting)}
                 className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700"
               >
-                Delete
+                {t('common.delete')}
               </button>
             </div>
           </div>
@@ -553,15 +561,15 @@ export default function GuestManagement() {
           <div className="flex items-center justify-between bg-slate-900/95 backdrop-blur px-4 py-3 shrink-0">
             <div className="flex items-center gap-2">
               <span className="text-white text-sm font-semibold">
-                {sendModalPages.find((p) => p.id === previewPageId)?.name ?? 'Template Preview'}
+                {sendModalPages.find((p) => p.id === previewPageId)?.name ?? t('guests.templatePreview')}
               </span>
-              <span className="text-slate-400 text-xs">(guest view)</span>
+              <span className="text-slate-400 text-xs">{t('guests.guestView')}</span>
             </div>
             <button
               onClick={() => setPreviewPageId(null)}
               className="text-white/80 hover:text-white text-sm font-medium px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
             >
-              ✕ Close Preview
+              {t('guests.closePreviewBtn')}
             </button>
           </div>
           {/* Full-screen iframe */}
@@ -580,14 +588,14 @@ export default function GuestManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/30" onClick={closeSendModal} />
           <div className="relative bg-white rounded-2xl p-6 shadow-xl w-full max-w-sm">
-            <h3 className="font-bold text-slate-900 mb-0.5">Send Invitation</h3>
+            <h3 className="font-bold text-slate-900 mb-0.5">{t('guests.sendInvitation')}</h3>
             <p className="text-sm text-slate-500 mb-5">
               {sendGuest.name} &middot; {sendGuest.whatsapp}
             </p>
 
             {/* Format tabs */}
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-              Invitation Format
+              {t('guests.invitationFormat')}
             </p>
             <div className="flex gap-2 mb-4">
               <button
@@ -598,8 +606,8 @@ export default function GuestManagement() {
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                Classic
-                <span className="block text-xs font-normal opacity-70">Built-in poster</span>
+                {t('guests.classic')}
+                <span className="block text-xs font-normal opacity-70">{t('guests.builtInPoster')}</span>
               </button>
               <button
                 onClick={() => { setSendFormat('custom'); setSendWaUrl(null) }}
@@ -610,9 +618,9 @@ export default function GuestManagement() {
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 } disabled:opacity-40 disabled:cursor-not-allowed`}
               >
-                Custom Template
+                {t('guests.customTemplate')}
                 <span className="block text-xs font-normal opacity-70">
-                  {sendModalPages.length === 0 ? 'No templates for this event' : 'Invitation Editor'}
+                  {sendModalPages.length === 0 ? t('guests.noTemplatesForEvent') : t('guests.invitationEditor')}
                 </span>
               </button>
             </div>
@@ -621,14 +629,14 @@ export default function GuestManagement() {
             {sendFormat === 'custom' && sendModalPages.length > 0 && (
               <div className="mb-4">
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                  Select Template
+                  {t('guests.selectTemplate')}
                 </label>
                 <select
                   value={sendPageId}
                   onChange={(e) => { setSendPageId(e.target.value); setSendWaUrl(null) }}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                 >
-                  <option value="">— Pick a template —</option>
+                  <option value="">{t('guests.pickTemplate')}</option>
                   {sendModalPages.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}{p.isActive ? ' ✓ active' : ''}
@@ -642,23 +650,52 @@ export default function GuestManagement() {
                     onClick={() => setPreviewPageId(sendPageId)}
                     className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-violet-300 text-violet-600 text-xs font-semibold hover:bg-violet-50 transition-colors"
                   >
-                    <span>👁</span> Preview Selected Template
+                    {t('guests.previewTemplate')}
                   </button>
                 )}
               </div>
             )}
 
+            {/* Message language selector */}
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                {t('guests.messageLanguage')}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setSendLang('es'); setSendWaUrl(null) }}
+                  className={`flex-1 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                    sendLang === 'es'
+                      ? 'bg-violet-600 text-white border-violet-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  🇪🇸 Español
+                </button>
+                <button
+                  onClick={() => { setSendLang('en'); setSendWaUrl(null) }}
+                  className={`flex-1 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                    sendLang === 'en'
+                      ? 'bg-violet-600 text-white border-violet-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  🇺🇸 English
+                </button>
+              </div>
+            </div>
+
             {/* WhatsApp link (shown after preparation) */}
             {sendWaUrl ? (
               <div className="mb-4">
                 <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3">
-                  Ready! Click the button below to open WhatsApp.
+                  {t('guests.waReady')}
                   {savedInvitationPageId ? (
                     <span className="block mt-0.5 text-green-600">
-                      Template saved: <strong>{sendModalPages.find((p) => p.id === savedInvitationPageId)?.name ?? savedInvitationPageId}</strong>
+                      {t('guests.templateSaved')} <strong>{sendModalPages.find((p) => p.id === savedInvitationPageId)?.name ?? savedInvitationPageId}</strong>
                     </span>
                   ) : sendFormat === 'classic' ? (
-                    <span className="block mt-0.5 text-green-600">Using classic built-in poster.</span>
+                    <span className="block mt-0.5 text-green-600">{t('guests.usingClassic')}</span>
                   ) : null}
                 </p>
                 <WhatsAppButton whatsappUrl={sendWaUrl} />
@@ -670,7 +707,7 @@ export default function GuestManagement() {
                     rel="noreferrer"
                     className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 transition-colors"
                   >
-                    🔗 Verify guest view ↗
+                    {t('guests.verifyGuestView')}
                   </a>
                 )}
               </div>
@@ -680,7 +717,7 @@ export default function GuestManagement() {
                 disabled={sendingInvite || (sendFormat === 'custom' && !sendPageId)}
                 className="w-full mb-4 py-2.5 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors"
               >
-                {sendingInvite ? 'Preparing…' : 'Prepare WhatsApp Message'}
+                {sendingInvite ? t('guests.preparing') : t('guests.prepareWA')}
               </button>
             )}
 
@@ -688,7 +725,7 @@ export default function GuestManagement() {
               onClick={closeSendModal}
               className="w-full py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              Close
+              {t('common.close')}
             </button>
           </div>
         </div>

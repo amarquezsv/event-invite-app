@@ -66,7 +66,7 @@ export const updateGuest = (id, data) => request('PUT',    `/guests/${encodeURIC
 export const deleteGuest = (id)       => request('DELETE', `/guests/${encodeURIComponent(id)}`)
 
 // ── Invite / RSVP (public) ───────────────────────────────────────────────────
-export const generateInviteLink  = (id) => request('GET',  `/invite/${encodeURIComponent(id)}`)
+export const generateInviteLink  = (id, lang = 'es') => request('GET',  `/invite/${encodeURIComponent(id)}?lang=${lang}`)
 export const confirmAttendance   = (id) => request('POST', `/confirm/${encodeURIComponent(id)}`)
 
 // ── Components ───────────────────────────────────────────────────────────────
@@ -79,8 +79,8 @@ export const deleteComponent    = (id)       => request('DELETE', `/components/$
 // ── Preview & WhatsApp ────────────────────────────────────────────────────────
 export const generatePreview     = (eventId, guestId) =>
   request('GET', `/preview/${encodeURIComponent(eventId)}/${encodeURIComponent(guestId)}`)
-export const generateWhatsAppMsg = (eventId, guestId) =>
-  request('GET', `/whatsapp/${encodeURIComponent(eventId)}/${encodeURIComponent(guestId)}`)
+export const generateWhatsAppMsg = (eventId, guestId, lang = 'es') =>
+  request('GET', `/whatsapp/${encodeURIComponent(eventId)}/${encodeURIComponent(guestId)}?lang=${lang}`)
 
 // ── Invitation Pages (admin-designed full HTML pages) ─────────────────────────
 export const listInvitationPages   = ()         => request('GET',    '/invitation-pages')
