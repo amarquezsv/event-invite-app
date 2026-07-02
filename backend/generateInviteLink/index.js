@@ -91,19 +91,34 @@ module.exports = async function (context, req) {
       } catch (_) { /* non-fatal — template preview falls back gracefully */ }
     }
 
-    // Fetch the admin-designed invitation page linked to this event (if any).
-    // The invitation page takes precedence over the template when rendering.
-    let invitationPage = null
+    // Fetch all invitation pages for this event so guests can browse/switch templates.
+    // Returns lightweight metadata for all pages + full HTML for the default (active) one.
+    let invitationPage  = null
+    let invitationPages = []
     if (event.id) {
       try {
         const pageContainer = await getContainer(process.env.COSMOS_CONTAINER_INVITATION_PAGES)
-        const { resources: pages } = await pageContainer.items
+
+        // Light metadata query for the template picker
+        const { resources: allMeta } = await pageContainer.items
           .query({
-            query: 'SELECT TOP 1 * FROM c WHERE c.eventId = @eventId ORDER BY c._ts DESC',
+            query: 'SELECT c.id, c.name, c.isActive FROM c WHERE c.eventId = @eventId ORDER BY c.isActive DESC, c._ts DESC',
             parameters: [{ name: '@eventId', value: event.id }],
           })
           .fetchAll()
-        invitationPage = pages[0] ?? null
+        invitationPages = allMeta ?? []
+
+        // Full HTML only for the default page (active one, or most recent)
+        if (invitationPages.length > 0) {
+          const defaultId = invitationPages.find((p) => p.isActive)?.id ?? invitationPages[0].id
+          const { resources: full } = await pageContainer.items
+            .query({
+              query:      'SELECT * FROM c WHERE c.id = @id',
+              parameters: [{ name: '@id', value: defaultId }],
+            })
+            .fetchAll()
+          invitationPage = full[0] ?? null
+        }
       } catch (_) { /* non-fatal */ }
     }
 
@@ -136,6 +151,7 @@ module.exports = async function (context, req) {
         event,
         template,
         invitationPage,
+        invitationPages,
         tokenMap,
         inviteLink,
         whatsappUrl,

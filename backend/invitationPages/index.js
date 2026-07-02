@@ -12,7 +12,7 @@ module.exports = async function (context, req) {
     try {
       const container = await getContainer(process.env.COSMOS_CONTAINER_INVITATION_PAGES)
       const { resources } = await container.items
-        .query('SELECT c.id, c.name, c.eventId, c.assets, c.createdAt, c.updatedAt FROM c ORDER BY c._ts DESC')
+        .query('SELECT c.id, c.name, c.eventId, c.assets, c.isActive, c.createdAt, c.updatedAt FROM c ORDER BY c._ts DESC')
         .fetchAll()
       context.res = {
         status: 200,

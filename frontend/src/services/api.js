@@ -88,6 +88,7 @@ export const getInvitationPageById = (id)       => request('GET',    `/invitatio
 export const createInvitationPage  = (data)     => request('POST',   '/invitation-pages', data)
 export const updateInvitationPage  = (id, data) => request('PUT',    `/invitation-pages/${encodeURIComponent(id)}`, data)
 export const deleteInvitationPage  = (id)       => request('DELETE', `/invitation-pages/${encodeURIComponent(id)}`)
+export const activateInvitationPage = (id)      => request('POST',   `/invitation-pages/${encodeURIComponent(id)}/activate`)
 
 /**
  * Uploads a base64-encoded image to the invitation page's asset storage.

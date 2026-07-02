@@ -5,6 +5,7 @@ import {
   updateInvitationPage,
   deleteInvitationPage,
   uploadInvitationAsset,
+  activateInvitationPage,
   getEvents,
 } from '../../services/api'
 import { replaceTokens, TOKENS, SAMPLE_DATA, TOKEN_GROUPS } from '../../utils/replaceTokens'
@@ -45,9 +46,10 @@ function fileToBase64(file) {
 
 export default function InvitationEditor() {
   // ── List state ──────────────────────────────────────────────
-  const [pages,    setPages]    = useState([])
-  const [events,   setEvents]   = useState([])
-  const [loading,  setLoading]  = useState(true)
+  const [pages,      setPages]      = useState([])
+  const [events,     setEvents]     = useState([])
+  const [loading,    setLoading]    = useState(true)
+  const [activating, setActivating] = useState(null)  // id being activated
 
   // ── Editor state ─────────────────────────────────────────────
   // editing: null = list view | 'new' = creating | '<id>' = editing existing
@@ -159,6 +161,24 @@ export default function InvitationEditor() {
     }
   }
 
+  async function handleActivate(pageId) {
+    setActivating(pageId)
+    setError(null)
+    try {
+      const updated = await activateInvitationPage(pageId)
+      // Mark this page active and all sibling pages inactive in local state
+      setPages((prev) =>
+        prev.map((p) =>
+          p.eventId === updated.eventId ? { ...p, isActive: p.id === pageId } : p
+        )
+      )
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setActivating(null)
+    }
+  }
+
   // ── Image upload ──────────────────────────────────────────────
 
   async function handleUpload() {
@@ -257,7 +277,14 @@ export default function InvitationEditor() {
               <div key={page.id} className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-semibold text-slate-800 text-sm truncate">{page.name}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-slate-800 text-sm truncate">{page.name}</p>
+                      {page.isActive && (
+                        <span className="shrink-0 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                          ✓ Active
+                        </span>
+                      )}
+                    </div>
                     {page.eventId && (
                       <p className="text-xs text-violet-500 mt-0.5 truncate">{eventName(page.eventId)}</p>
                     )}
@@ -303,6 +330,16 @@ export default function InvitationEditor() {
                   >
                     {copiedKey === page.id ? '✓ Copied' : 'Copy Link'}
                   </button>
+                  {/* Only show Set Active when the page is linked to an event and not already active */}
+                  {page.eventId && !page.isActive && (
+                    <button
+                      onClick={() => handleActivate(page.id)}
+                      disabled={activating === page.id}
+                      className="text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100 disabled:opacity-50 transition-colors"
+                    >
+                      {activating === page.id ? '…' : 'Set Active'}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

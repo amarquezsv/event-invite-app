@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { generatePreview } from '../services/api'
 import InvitationRenderer from '../components/invitation/InvitationRenderer'
+import { replaceTokens } from '../utils/replaceTokens'
 
 const CATEGORY_EMOJI = {
   wedding:     '💍',
@@ -122,7 +123,7 @@ export default function PreviewPage() {
     )
   }
 
-  const { event, template, tokenMap } = data
+  const { event, template, tokenMap, invitationPage } = data
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
@@ -130,6 +131,9 @@ export default function PreviewPage() {
       <div className="bg-slate-900 text-white text-xs px-4 py-2 flex items-center justify-between">
         <span>
           Preview: <strong>{data.guest?.name}</strong> · {event.name}
+          {invitationPage && (
+            <span className="ml-2 text-slate-400">— {invitationPage.name}</span>
+          )}
         </span>
         <Link to="/admin/guests" className="text-slate-400 hover:text-white">
           ← Admin
@@ -137,7 +141,17 @@ export default function PreviewPage() {
       </div>
 
       <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-sm shadow-2xl overflow-hidden rounded-xl">
+        {invitationPage?.html ? (
+          // Full HTML invitation page — render in an iframe so the design is pixel-perfect
+          <iframe
+            srcDoc={replaceTokens(invitationPage.html, tokenMap)}
+            title="Invitation Preview"
+            className="w-full max-w-sm shadow-2xl rounded-xl border-0"
+            style={{ height: '80vh' }}
+            sandbox="allow-scripts allow-popups"
+          />
+        ) : (
+          <div className="w-full max-w-sm shadow-2xl overflow-hidden rounded-xl">
           {template?.html ? (
             <InvitationRenderer
               templateHtml={template.html}
@@ -148,7 +162,8 @@ export default function PreviewPage() {
           ) : (
             <DefaultInvitation tokenMap={tokenMap} event={event} />
           )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )

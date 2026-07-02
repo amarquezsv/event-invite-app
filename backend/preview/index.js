@@ -16,10 +16,11 @@ module.exports = async function (context, req) {
   }
 
   try {
-    const [guestContainer, eventContainer, templateContainer] = await Promise.all([
+    const [guestContainer, eventContainer, templateContainer, pageContainer] = await Promise.all([
       getContainer(process.env.COSMOS_CONTAINER_GUESTS),
       getContainer(process.env.COSMOS_CONTAINER_EVENTS),
       getContainer(process.env.COSMOS_CONTAINER_TEMPLATES),
+      getContainer(process.env.COSMOS_CONTAINER_INVITATION_PAGES),
     ])
 
     const [{ resources: guests }, { resources: events }] = await Promise.all([
@@ -61,6 +62,28 @@ module.exports = async function (context, req) {
       template = templates[0] ?? null
     }
 
+    // Fetch the invitation page for this event — prefer active, fall back to most recent
+    let invitationPage = null
+    try {
+      const { resources: activePages } = await pageContainer.items
+        .query({
+          query:      'SELECT TOP 1 * FROM c WHERE c.eventId = @eventId AND c.isActive = true',
+          parameters: [{ name: '@eventId', value: event.id }],
+        })
+        .fetchAll()
+      if (activePages?.length) {
+        invitationPage = activePages[0]
+      } else {
+        const { resources: pages } = await pageContainer.items
+          .query({
+            query:      'SELECT TOP 1 * FROM c WHERE c.eventId = @eventId ORDER BY c._ts DESC',
+            parameters: [{ name: '@eventId', value: event.id }],
+          })
+          .fetchAll()
+        invitationPage = pages[0] ?? null
+      }
+    } catch (_) { /* non-fatal */ }
+
     const baseUrl    = (process.env.APP_BASE_URL ?? '').replace(/\/$/, '')
     const inviteLink = guest.inviteLink ?? `${baseUrl}/invite/${guest.id}`
 
@@ -92,6 +115,7 @@ module.exports = async function (context, req) {
         guest,
         event,
         template,
+        invitationPage,
         tokenMap,
         inviteLink,
       },

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import InvitationPoster from '../components/invitation/InvitationPoster'
 import InvitationRenderer from '../components/invitation/InvitationRenderer'
-import { generateInviteLink, confirmAttendance } from '../services/api'
+import { generateInviteLink, confirmAttendance, getInvitationPageById } from '../services/api'
 import { replaceTokens } from '../utils/replaceTokens'
 
 /**
@@ -19,16 +19,22 @@ export default function Invitation() {
   const { guestId }  = useParams()
   const navigate     = useNavigate()
 
-  const [data,       setData]       = useState(null)
-  const [loading,    setLoading]    = useState(true)
-  const [pageError,  setPageError]  = useState(null)
-  const [confirming, setConfirming] = useState(false)
-  const [confirmErr, setConfirmErr] = useState(null)
+  const [data,         setData]         = useState(null)
+  const [loading,      setLoading]      = useState(true)
+  const [pageError,    setPageError]    = useState(null)
+  const [confirming,   setConfirming]   = useState(false)
+  const [confirmErr,   setConfirmErr]   = useState(null)
+  // Selected invitation page (guest can switch between templates)
+  const [selectedPage, setSelectedPage] = useState(null)
+  const [loadingPage,  setLoadingPage]  = useState(false)
 
   useEffect(() => {
     if (!guestId) return
     generateInviteLink(guestId)
-      .then((d) => setData(d))
+      .then((d) => {
+        setData(d)
+        setSelectedPage(d.invitationPage ?? null)
+      })
       .catch(() => setPageError('Invitation not found or the link has expired.'))
       .finally(() => setLoading(false))
   }, [guestId])
@@ -46,6 +52,17 @@ export default function Invitation() {
     } finally {
       setConfirming(false)
     }
+  }
+
+  // Fetch the full HTML for a different template when the guest switches
+  async function handleSelectPage(pageId) {
+    if (pageId === selectedPage?.id || loadingPage) return
+    setLoadingPage(true)
+    try {
+      const page = await getInvitationPageById(pageId)
+      setSelectedPage(page)
+    } catch { /* silently ignore — keep current page */ }
+    finally { setLoadingPage(false) }
   }
 
   // ── Loading state ──────────────────────────────────────────────
@@ -74,24 +91,48 @@ export default function Invitation() {
     )
   }
 
-  const { guest, event, template, tokenMap, invitationPage } = data
+  const { guest, event, template, tokenMap, invitationPages } = data
   const alreadyConfirmed = guest?.confirmed
+
+  // ── Template picker (shown when the event has multiple invitation pages) ────
+
+  const showPicker = invitationPages?.length > 1
+
+  const templatePicker = showPicker ? (
+    <div className="fixed top-0 left-0 right-0 z-40 bg-white/90 backdrop-blur border-b border-slate-100 px-3 py-2 flex gap-2 overflow-x-auto">
+      {invitationPages.map((p) => (
+        <button
+          key={p.id}
+          onClick={() => handleSelectPage(p.id)}
+          disabled={loadingPage}
+          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+            selectedPage?.id === p.id
+              ? 'bg-violet-600 text-white shadow-sm'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          {loadingPage && selectedPage?.id !== p.id ? p.name : p.name}
+        </button>
+      ))}
+    </div>
+  ) : null
 
   // ── Full HTML invitation page (admin-designed) ───────────────────────────
   // Takes precedence over the legacy template / built-in poster.
 
-  if (invitationPage?.html) {
+  if (selectedPage?.html) {
     // Apply token replacement so {guestName}, {eventName}, etc. become real values
-    const renderedHtml = replaceTokens(invitationPage.html, tokenMap ?? {})
+    const renderedHtml = replaceTokens(selectedPage.html, tokenMap ?? {})
 
     return (
       <>
+        {templatePicker}
         {/* Admin-designed HTML in a sandboxed full-viewport iframe */}
         <iframe
           srcDoc={renderedHtml}
-          title={invitationPage.name ?? 'Invitation'}
+          title={selectedPage.name ?? 'Invitation'}
           className="w-full border-0 block"
-          style={{ height: '100svh' }}
+          style={{ height: '100svh', marginTop: showPicker ? '2.5rem' : 0 }}
           sandbox="allow-scripts allow-popups"
         />
         {/* Sticky confirmation CTA overlays the iframe */}
@@ -126,7 +167,8 @@ export default function Invitation() {
   // ── Invitation poster + sticky CTA ─────────────────────────────────
 
   return (
-    <div className="pb-24">
+    <div className={`pb-24 ${showPicker ? 'pt-10' : ''}`}>
+      {templatePicker}
       {/* Render custom template if available, otherwise use built-in poster */}
       {template?.html ? (
         <div className="w-full max-w-sm sm:max-w-md mx-auto shadow-xl overflow-hidden my-6 rounded-xl px-4 sm:px-0">
