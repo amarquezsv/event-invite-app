@@ -1,50 +1,74 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useSearchParams, Link } from 'react-router-dom'
 import {
-  getGuests,
-  addGuest,
-  updateGuest,
-  generateInviteLink,
+  getGuests, getEvents, addGuest, updateGuest, deleteGuest,
+  generateInviteLink, generateWhatsAppMsg,
 } from '../../services/api'
 import WhatsAppButton from '../../components/admin/WhatsAppButton'
 import { getCountryFromPhone } from '../../utils/phoneCountry'
 
 /**
- * GuestManagement — admin page for managing the guest list.
+ * GuestManagement — admin page for managing guests across all events.
  *
- * Features:
- *   - Add new guests (name, WhatsApp number, seat count)
- *   - Toggle confirmed / pending status inline
- *   - Copy personalised invitation link to clipboard
- *   - Generate and open pre-filled WhatsApp deep links
+ * Supports:
+ *  - Event selector (URL param: ?eventId=)
+ *  - Add guests with eventId + customNotes
+ *  - Toggle confirmed / pending status inline
+ *  - Preview invitation per guest
+ *  - Generate WhatsApp deep link per guest
+ *  - Delete guest
  */
 export default function GuestManagement() {
-  const [guests,       setGuests]       = useState([])
-  const [loading,      setLoading]      = useState(true)
-  const [error,        setError]        = useState(null)
-  // Map of guestId → whatsappUrl (loaded on demand)
-  const [waUrls,       setWaUrls]       = useState({})
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlEventId = searchParams.get('eventId') ?? ''
+
+  const [events,  setEvents]  = useState([])
+  const [guests,  setGuests]  = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error,   setError]   = useState(null)
+
+  const [selectedEventId, setSelectedEventId] = useState(urlEventId)
+
+  // WhatsApp URLs loaded on demand
+  const [waUrls, setWaUrls] = useState({})
+  // Delete confirmation
+  const [deleting, setDeleting] = useState(null)
 
   // New-guest form
-  const EMPTY = { name: '', whatsapp: '', seats: 2 }
+  const EMPTY = { name: '', whatsapp: '', seats: 2, customNotes: '' }
   const [form,      setForm]      = useState(EMPTY)
   const [adding,    setAdding]    = useState(false)
   const [formError, setFormError] = useState(null)
 
+  // Load events once on mount
+  useEffect(() => {
+    getEvents()
+      .then((data) => setEvents(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [])
+
+  // Keep URL in sync with selected event
+  useEffect(() => {
+    if (selectedEventId) {
+      setSearchParams({ eventId: selectedEventId }, { replace: true })
+    } else {
+      setSearchParams({}, { replace: true })
+    }
+  }, [selectedEventId, setSearchParams])
+
   const loadGuests = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getGuests()
+      const data = await getGuests(selectedEventId || undefined)
       setGuests(Array.isArray(data) ? data : [])
     } catch {
       setError('Failed to load guests.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [selectedEventId])
 
   useEffect(() => { loadGuests() }, [loadGuests])
-
-  // ── New guest form ─────────────────────────────────────────────
 
   function handleFormChange(e) {
     const { name, value } = e.target
@@ -59,7 +83,11 @@ export default function GuestManagement() {
     setFormError(null)
     setAdding(true)
     try {
-      const newGuest = await addGuest(form)
+      const payload = {
+        ...form,
+        eventId: selectedEventId || null,
+      }
+      const newGuest = await addGuest(payload)
       setGuests((prev) => [newGuest, ...prev])
       setForm(EMPTY)
     } catch (err) {
@@ -68,8 +96,6 @@ export default function GuestManagement() {
       setAdding(false)
     }
   }
-
-  // ── Inline status toggle ───────────────────────────────────────
 
   async function handleToggleConfirmed(guest) {
     try {
@@ -80,33 +106,79 @@ export default function GuestManagement() {
     }
   }
 
-  // ── WhatsApp deep link (loaded on demand) ─────────────────────
-
   async function handleFetchWhatsApp(guest) {
     try {
-      const data = await generateInviteLink(guest.id)
-      setWaUrls((prev) => ({ ...prev, [guest.id]: data.whatsappUrl }))
+      if (guest.eventId) {
+        const data = await generateWhatsAppMsg(guest.eventId, guest.id)
+        setWaUrls((prev) => ({ ...prev, [guest.id]: data.whatsappUrl }))
+      } else {
+        const data = await generateInviteLink(guest.id)
+        setWaUrls((prev) => ({ ...prev, [guest.id]: data.whatsappUrl }))
+      }
     } catch {
-      alert('Failed to generate invitation link.')
+      alert('Failed to generate WhatsApp link.')
     }
   }
 
-  // ── Copy invite link ──────────────────────────────────────────
+  async function handleDelete(id) {
+    await deleteGuest(id)
+    setGuests((prev) => prev.filter((g) => g.id !== id))
+    setDeleting(null)
+  }
 
   function copyLink(link) {
     navigator.clipboard
       .writeText(link)
-      .then(() => alert('Invitation link copied to clipboard!'))
+      .then(() => alert('Invitation link copied!'))
       .catch(() => alert(`Link: ${link}`))
   }
 
-  // ── Render ────────────────────────────────────────────────────
+  const selectedEvent = events.find((e) => e.id === selectedEventId)
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Guest Management</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold text-slate-900">Guest Management</h1>
+        <Link
+          to="/admin/events"
+          className="text-sm text-violet-600 hover:text-violet-800"
+        >
+          ← All Events
+        </Link>
+      </div>
 
-      {/* ── Add guest form ─────────────────────────────── */}
+      {/* Event selector */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 mb-5">
+        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+          Filter by Event
+        </label>
+        <select
+          value={selectedEventId}
+          onChange={(e) => setSelectedEventId(e.target.value)}
+          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-400"
+        >
+          <option value="">— All events —</option>
+          {events.map((evt) => (
+            <option key={evt.id} value={evt.id}>
+              {evt.name} {evt.date ? `· ${evt.date}` : ''}
+            </option>
+          ))}
+        </select>
+        {selectedEvent && (
+          <div className="mt-2 flex gap-1">
+            {['color1','color2','color3','color4','color5'].map((c) => (
+              <div
+                key={c}
+                className="w-4 h-4 rounded-full border border-white shadow-sm"
+                style={{ backgroundColor: selectedEvent.colorPalette?.[c] ?? '#e2e8f0' }}
+              />
+            ))}
+            <span className="text-xs text-slate-400 ml-2">{selectedEvent.category}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Add guest form */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
         <h2 className="text-base font-semibold text-slate-800 mb-4">Add New Guest</h2>
 
@@ -129,7 +201,6 @@ export default function GuestManagement() {
               placeholder="Jane Doe"
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
-            <div className="mt-1 h-4" />
           </div>
 
           <div className="flex-1 min-w-44">
@@ -145,24 +216,21 @@ export default function GuestManagement() {
                 placeholder="+503 7712 3456"
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
-              {/* Fixed-height hint — always occupies space so the form row never shifts */}
-              <div className="mt-1 h-4">
-                {(() => {
-                  const country = getCountryFromPhone(form.whatsapp)
-                  if (country) {
-                    return (
+              {form.whatsapp.length > 0 && (
+                <div className="mt-0.5 h-4">
+                  {(() => {
+                    const country = getCountryFromPhone(form.whatsapp)
+                    return country ? (
                       <span className="inline-flex items-center gap-1 text-xs text-slate-500 leading-none">
                         <span className="text-sm leading-none">{country.flag}</span>
                         <span>{country.name}</span>
                       </span>
+                    ) : (
+                      <span className="text-xs text-slate-400 leading-none">Unknown country code</span>
                     )
-                  }
-                  if (form.whatsapp.length > 0) {
-                    return <span className="text-xs text-slate-400 leading-none">Unknown country code</span>
-                  }
-                  return null
-                })()}
-              </div>
+                  })()}
+                </div>
+              )}
             </div>
           </div>
 
@@ -180,26 +248,39 @@ export default function GuestManagement() {
               required
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
-            <div className="mt-1 h-4" />
+          </div>
+
+          <div className="flex-1 min-w-44">
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Custom Notes
+            </label>
+            <input
+              name="customNotes"
+              value={form.customNotes}
+              onChange={handleFormChange}
+              placeholder="Park in north lot"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
           </div>
 
           <button
             type="submit"
             disabled={adding}
-            className="bg-violet-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-violet-700 disabled:opacity-60 transition-colors text-sm whitespace-nowrap mb-5"
+            className="bg-violet-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-violet-700 disabled:opacity-60 transition-colors text-sm whitespace-nowrap self-end mb-0.5"
           >
             {adding ? 'Adding…' : '+ Add Guest'}
           </button>
         </form>
       </div>
 
-      {/* ── Guest table ────────────────────────────────── */}
+      {/* Guest table */}
       {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
       {loading ? (
         <p className="text-slate-400 animate-pulse text-sm">Loading guests…</p>
       ) : guests.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
+          <p className="text-4xl mb-2">👥</p>
           <p className="text-slate-400 text-sm">
             No guests yet. Add your first guest above.
           </p>
@@ -210,7 +291,7 @@ export default function GuestManagement() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {['Name', 'WhatsApp', 'Seats', 'Status', 'Actions'].map((h) => (
+                  {['Name', 'WhatsApp', 'Seats', 'Notes', 'Status', 'Actions'].map((h) => (
                     <th
                       key={h}
                       className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
@@ -225,16 +306,18 @@ export default function GuestManagement() {
                   <tr key={g.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">
                       {g.name}
+                      {g.eventId && !selectedEventId && (
+                        <div className="text-xs text-slate-400 font-normal">
+                          {events.find((e) => e.id === g.eventId)?.name ?? g.eventId}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                       <div className="inline-flex items-center gap-1.5">
                         {(() => {
                           const country = getCountryFromPhone(g.whatsapp)
                           return country ? (
-                            <span
-                              className="text-base leading-none shrink-0"
-                              title={country.name}
-                            >
+                            <span className="text-base leading-none shrink-0" title={country.name}>
                               {country.flag}
                             </span>
                           ) : null
@@ -243,8 +326,8 @@ export default function GuestManagement() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-slate-600">{g.seats}</td>
+                    <td className="px-4 py-3 text-slate-400 max-w-xs truncate">{g.customNotes}</td>
                     <td className="px-4 py-3">
-                      {/* Click the badge to toggle confirmed / pending */}
                       <button
                         onClick={() => handleToggleConfirmed(g)}
                         className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${
@@ -259,15 +342,35 @@ export default function GuestManagement() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {/* Preview invitation */}
+                        {g.eventId ? (
+                          <Link
+                            to={`/preview/${g.eventId}/${g.id}`}
+                            target="_blank"
+                            className="text-xs text-violet-600 hover:text-violet-800 font-medium whitespace-nowrap"
+                          >
+                            Preview
+                          </Link>
+                        ) : (
+                          <a
+                            href={g.inviteLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-violet-600 hover:text-violet-800 font-medium whitespace-nowrap"
+                          >
+                            Preview
+                          </a>
+                        )}
+
                         {/* Copy invite link */}
                         <button
                           onClick={() => copyLink(g.inviteLink)}
-                          className="text-xs text-violet-600 hover:text-violet-800 font-medium whitespace-nowrap"
+                          className="text-xs text-slate-500 hover:text-slate-700 font-medium whitespace-nowrap"
                         >
                           Copy Link
                         </button>
 
-                        {/* WhatsApp button — fetch URL on first click */}
+                        {/* WhatsApp */}
                         {waUrls[g.id] ? (
                           <WhatsAppButton whatsappUrl={waUrls[g.id]} />
                         ) : (
@@ -275,9 +378,17 @@ export default function GuestManagement() {
                             onClick={() => handleFetchWhatsApp(g)}
                             className="text-xs text-slate-500 hover:text-slate-700 font-medium whitespace-nowrap"
                           >
-                            Get WhatsApp ↗
+                            WhatsApp ↗
                           </button>
                         )}
+
+                        {/* Delete */}
+                        <button
+                          onClick={() => setDeleting(g.id)}
+                          className="text-xs text-red-400 hover:text-red-600 font-medium whitespace-nowrap"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -288,7 +399,33 @@ export default function GuestManagement() {
           <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
             <p className="text-xs text-slate-400">
               {guests.length} guest{guests.length !== 1 ? 's' : ''} total
+              {selectedEvent && ` · ${selectedEvent.name}`}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {deleting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setDeleting(null)} />
+          <div className="relative bg-white rounded-2xl p-6 shadow-xl max-w-sm w-full">
+            <h3 className="font-bold text-slate-900 mb-2">Delete guest?</h3>
+            <p className="text-sm text-slate-500 mb-5">This cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleting(null)}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleting)}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

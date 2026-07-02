@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import InvitationPoster from '../components/invitation/InvitationPoster'
+import InvitationRenderer from '../components/invitation/InvitationRenderer'
 import { generateInviteLink, confirmAttendance } from '../services/api'
 
 /**
@@ -8,17 +9,16 @@ import { generateInviteLink, confirmAttendance } from '../services/api'
  *
  * URL: /invite/:guestId
  *
- * 1. Fetches the guest record and event config from the backend in one call.
- * 2. Renders the appropriate invitation template poster.
- * 3. Shows a sticky bottom bar with the "Reserve My Seats" CTA.
- * 4. On confirmation, calls the confirmAttendance endpoint and redirects
- *    to /confirmed with the guest + event data passed as router state.
+ * 1. Fetches guest + event data (and optional custom template) from the backend.
+ * 2. If the event has a custom template, renders it via InvitationRenderer.
+ * 3. Otherwise falls back to the built-in InvitationPoster.
+ * 4. Shows a sticky bottom bar with the "Reserve My Seats" CTA.
  */
 export default function Invitation() {
   const { guestId }  = useParams()
   const navigate     = useNavigate()
 
-  const [data,       setData]       = useState(null)   // { guest, event, inviteLink }
+  const [data,       setData]       = useState(null)
   const [loading,    setLoading]    = useState(true)
   const [pageError,  setPageError]  = useState(null)
   const [confirming, setConfirming] = useState(false)
@@ -26,7 +26,6 @@ export default function Invitation() {
 
   useEffect(() => {
     if (!guestId) return
-
     generateInviteLink(guestId)
       .then((d) => setData(d))
       .catch(() => setPageError('Invitation not found or the link has expired.'))
@@ -74,15 +73,26 @@ export default function Invitation() {
     )
   }
 
-  const { guest, event } = data
+  const { guest, event, template, tokenMap } = data
   const alreadyConfirmed = guest?.confirmed
 
   // ── Invitation poster + sticky CTA ───────────────────────────
 
   return (
     <div className="pb-24">
-      {/* Full-bleed invitation poster */}
-      <InvitationPoster event={event} guest={guest} />
+      {/* Render custom template if available, otherwise use built-in poster */}
+      {template?.html ? (
+        <div className="max-w-sm mx-auto shadow-xl overflow-hidden my-6 rounded-xl">
+          <InvitationRenderer
+            templateHtml={template.html}
+            templateCss={template.css}
+            tokenMap={tokenMap ?? {}}
+            className="bg-white"
+          />
+        </div>
+      ) : (
+        <InvitationPoster event={event} guest={guest} />
+      )}
 
       {/* Sticky bottom action bar */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 px-4 py-4">

@@ -23,26 +23,17 @@ module.exports = async function (context, req) {
   }
 
   try {
-    // Fetch guest and event config in parallel for lower latency.
     const [guestContainer, eventContainer] = await Promise.all([
       getContainer(process.env.COSMOS_CONTAINER_GUESTS),
       getContainer(process.env.COSMOS_CONTAINER_EVENTS),
     ])
 
-    const [{ resources: guests }, { resources: events }] = await Promise.all([
-      guestContainer.items
-        .query({
-          query: 'SELECT * FROM c WHERE c.id = @id',
-          parameters: [{ name: '@id', value: id.trim() }],
-        })
-        .fetchAll(),
-      eventContainer.items
-        .query({
-          query: 'SELECT * FROM c WHERE c.id = @id',
-          parameters: [{ name: '@id', value: 'event-config' }],
-        })
-        .fetchAll(),
-    ])
+    const { resources: guests } = await guestContainer.items
+      .query({
+        query: 'SELECT * FROM c WHERE c.id = @id',
+        parameters: [{ name: '@id', value: id.trim() }],
+      })
+      .fetchAll()
 
     if (!guests?.length) {
       context.res = { status: 404, body: { error: 'Guest not found.' } }
@@ -50,6 +41,17 @@ module.exports = async function (context, req) {
     }
 
     const guest = guests[0]
+
+    // If the guest is linked to a specific event, load that event;
+    // otherwise fall back to the legacy single event-config document.
+    const eventLookupId = guest.eventId ?? 'event-config'
+    const { resources: events } = await eventContainer.items
+      .query({
+        query: 'SELECT * FROM c WHERE c.id = @id',
+        parameters: [{ name: '@id', value: eventLookupId }],
+      })
+      .fetchAll()
+
     const event = events[0] ?? {
       name: 'Our Event',
       date: '',
@@ -58,7 +60,7 @@ module.exports = async function (context, req) {
       address: '',
     }
 
-    const baseUrl   = (process.env.APP_BASE_URL ?? '').replace(/\/$/, '')
+    const baseUrl    = (process.env.APP_BASE_URL ?? '').replace(/\/$/, '')
     const inviteLink = guest.inviteLink ?? `${baseUrl}/invite/${guest.id}`
     const seatLabel  = guest.seats === 1 ? 'seat' : 'seats'
 
@@ -68,10 +70,47 @@ module.exports = async function (context, req) {
     ]
     if (event.date) lines.push(`📅 ${event.date}${event.time ? ` at ${event.time}` : ''}`)
     if (event.location) lines.push(`📍 ${event.location}`)
+    if (guest.customNotes) lines.push(`📝 ${guest.customNotes}`)
     lines.push(`Please confirm your attendance here: ${inviteLink}`)
 
     const whatsappMessage = lines.join('\n')
     const whatsappUrl     = `https://wa.me/${guest.whatsapp}?text=${encodeURIComponent(whatsappMessage)}`
+
+    // Fetch the template associated with the event (if any)
+    let template = null
+    if (event.selectedTemplateId) {
+      try {
+        const templateContainer = await getContainer(process.env.COSMOS_CONTAINER_TEMPLATES)
+        const { resources: tmpl } = await templateContainer.items
+          .query({
+            query: 'SELECT * FROM c WHERE c.id = @id',
+            parameters: [{ name: '@id', value: event.selectedTemplateId }],
+          })
+          .fetchAll()
+        template = tmpl[0] ?? null
+      } catch (_) { /* non-fatal — template preview falls back gracefully */ }
+    }
+
+    // Build token map for the frontend renderer
+    const palette  = event.colorPalette ?? {}
+    const tokenMap = {
+      eventName:     event.name     ?? '',
+      eventDate:     event.date     ?? '',
+      eventTime:     event.time     ?? '',
+      eventLocation: event.location ?? '',
+      eventAddress:  event.address  ?? '',
+      category:      event.category ?? '',
+      color1:  palette.color1 ?? '#6d28d9',
+      color2:  palette.color2 ?? '#a78bfa',
+      color3:  palette.color3 ?? '#ddd6fe',
+      color4:  palette.color4 ?? '#1e1b4b',
+      color5:  palette.color5 ?? '#ffffff',
+      guestName:   guest.name    ?? '',
+      guestSeats:  String(guest.seats ?? 1),
+      customNotes: guest.customNotes ?? '',
+      inviteLink,
+      ...(event.customTexts ?? {}),
+    }
 
     context.res = {
       status: 200,
@@ -79,6 +118,8 @@ module.exports = async function (context, req) {
       body: {
         guest,
         event,
+        template,
+        tokenMap,
         inviteLink,
         whatsappUrl,
         whatsappMessage,

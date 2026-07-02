@@ -7,15 +7,18 @@ import Footer from './components/Footer'
 import Home         from './pages/Home'
 import Invitation   from './pages/Invitation'
 import Confirmation from './pages/Confirmation'
+import PreviewPage  from './pages/PreviewPage'
 
 // Admin shell & pages
-import AdminLogin      from './components/admin/AdminLogin'
-import AdminLayout     from './components/admin/AdminLayout'
-import Dashboard       from './pages/admin/Dashboard'
-import EventConfig     from './pages/admin/EventConfig'
-import GuestManagement from './pages/admin/GuestManagement'
-import TemplateManager  from './pages/admin/TemplateManager'
-import TemplateBuilder  from './pages/admin/TemplateBuilder'
+import AdminLogin        from './components/admin/AdminLogin'
+import AdminLayout       from './components/admin/AdminLayout'
+import Dashboard         from './pages/admin/Dashboard'
+import EventConfig       from './pages/admin/EventConfig'
+import EventManager      from './pages/admin/EventManager'
+import GuestManagement   from './pages/admin/GuestManagement'
+import TemplateManager   from './pages/admin/TemplateManager'
+import TemplateBuilder   from './pages/admin/TemplateBuilder'
+import ComponentCatalog  from './pages/admin/ComponentCatalog'
 
 /**
  * ProtectedRoute — redirects unauthenticated users to /admin/login.
@@ -34,12 +37,11 @@ function PublicShell() {
       <Header />
       <main className="flex-1">
         <Routes>
-          {/* Home — shows dynamic event summary */}
-          <Route path="/" element={<Home />} />
-          {/* Personalised invitation page for each guest */}
-          <Route path="/invite/:guestId" element={<Invitation />} />
-          {/* Post-confirmation thank-you page */}
-          <Route path="/confirmed" element={<Confirmation />} />
+          <Route path="/"                   element={<Home />} />
+          <Route path="/invite/:guestId"    element={<Invitation />} />
+          <Route path="/confirmed"          element={<Confirmation />} />
+          {/* Multi-event preview page (public — admins open from guest table) */}
+          <Route path="/preview/:eventId/:guestId" element={<PreviewPage />} />
         </Routes>
       </main>
       <Footer />
@@ -51,14 +53,18 @@ function PublicShell() {
  * Root application component.
  *
  * Route structure:
- *   /                     → Public home page
- *   /invite/:guestId      → Personalised invitation poster
- *   /confirmed            → Attendance confirmed thank-you
- *   /admin/login          → Admin login (no auth required)
- *   /admin/dashboard      → Admin dashboard (protected)
- *   /admin/event          → Event configuration (protected)
- *   /admin/guests         → Guest management (protected)
- *   /admin/templates      → Template management (protected)
+ *   /                              → Public home page
+ *   /invite/:guestId               → Personalised invitation poster
+ *   /confirmed                     → Attendance confirmed thank-you
+ *   /preview/:eventId/:guestId     → Admin / shareable invitation preview
+ *   /admin/login                   → Admin login (no auth required)
+ *   /admin/dashboard               → Admin dashboard (protected)
+ *   /admin/events                  → Event manager (protected)
+ *   /admin/event                   → Legacy single-event config (protected)
+ *   /admin/guests                  → Guest management (protected)
+ *   /admin/templates               → Template management (protected)
+ *   /admin/template-builder        → Template builder (protected)
+ *   /admin/components              → Component catalog (protected)
  */
 export default function App() {
   return (
@@ -78,11 +84,13 @@ export default function App() {
             }
           >
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="event"     element={<EventConfig />} />
-            <Route path="guests"    element={<GuestManagement />} />
+            <Route path="dashboard"        element={<Dashboard />} />
+            <Route path="events"           element={<EventManager />} />
+            <Route path="event"            element={<EventConfig />} />
+            <Route path="guests"           element={<GuestManagement />} />
             <Route path="templates"        element={<TemplateManager />} />
             <Route path="template-builder" element={<TemplateBuilder />} />
+            <Route path="components"       element={<ComponentCatalog />} />
           </Route>
 
           {/* All public routes share the Header + Footer shell */}

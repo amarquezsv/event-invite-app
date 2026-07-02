@@ -10,9 +10,19 @@ module.exports = async function (context, req) {
   if (method === 'GET') {
     try {
       const container = await getContainer(process.env.COSMOS_CONTAINER_GUESTS)
-      const { resources } = await container.items
-        .query('SELECT * FROM c ORDER BY c._ts DESC')
-        .fetchAll()
+      const eventId = req.query?.eventId
+
+      let querySpec
+      if (eventId) {
+        querySpec = {
+          query: 'SELECT * FROM c WHERE c.eventId = @eventId ORDER BY c._ts DESC',
+          parameters: [{ name: '@eventId', value: eventId }],
+        }
+      } else {
+        querySpec = 'SELECT * FROM c ORDER BY c._ts DESC'
+      }
+
+      const { resources } = await container.items.query(querySpec).fetchAll()
       context.res = {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -26,7 +36,7 @@ module.exports = async function (context, req) {
   }
 
   if (method === 'POST') {
-    const { name, whatsapp, seats } = req.body ?? {}
+    const { name, whatsapp, seats, eventId, customNotes } = req.body ?? {}
 
     if (!name?.trim()) {
       context.res = { status: 400, body: { error: 'Guest name is required.' } }
@@ -48,9 +58,11 @@ module.exports = async function (context, req) {
       const baseUrl = (process.env.APP_BASE_URL ?? '').replace(/\/$/, '')
       const doc = {
         id: guestId,
+        eventId: eventId?.trim() ?? null,
         name: name.trim(),
         whatsapp: whatsapp.replace(/[\s\-()]/g, ''),
         seats: seatCount,
+        customNotes: (customNotes ?? '').trim(),
         confirmed: false,
         inviteLink: `${baseUrl}/invite/${guestId}`,
         createdAt: new Date().toISOString(),
