@@ -40,6 +40,8 @@ export default function GuestManagement() {
   const [sendWaUrl,    setSendWaUrl]    = useState(null)
   // Pages available in the Send modal — loaded from the guest's own event
   const [sendModalPages, setSendModalPages] = useState([])
+  // Full-screen template preview overlay inside the modal
+  const [previewPageId, setPreviewPageId] = useState(null)
 
   // New-guest form
   const EMPTY = { name: '', whatsapp: '', seats: 2, customNotes: '', invitationPageId: '' }
@@ -165,6 +167,7 @@ export default function GuestManagement() {
     setSendGuest(null)
     setSendWaUrl(null)
     setSendModalPages([])
+    setPreviewPageId(null)
   }
 
   async function handlePrepareInvite() {
@@ -536,6 +539,35 @@ export default function GuestManagement() {
         </div>
       )}
 
+      {/* ── Custom template preview overlay ────────────────────── */}
+      {previewPageId && (
+        <div className="fixed inset-0 z-60 flex flex-col">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between bg-slate-900/95 backdrop-blur px-4 py-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-white text-sm font-semibold">
+                {sendModalPages.find((p) => p.id === previewPageId)?.name ?? 'Template Preview'}
+              </span>
+              <span className="text-slate-400 text-xs">(guest view)</span>
+            </div>
+            <button
+              onClick={() => setPreviewPageId(null)}
+              className="text-white/80 hover:text-white text-sm font-medium px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+            >
+              ✕ Close Preview
+            </button>
+          </div>
+          {/* Full-screen iframe */}
+          <iframe
+            key={previewPageId}
+            src={`/api/public/page/${encodeURIComponent(previewPageId)}`}
+            title="Template Preview"
+            className="flex-1 w-full border-0"
+            sandbox="allow-scripts allow-popups"
+          />
+        </div>
+      )}
+
       {/* ── Send Invitation modal ──────────────────────────────── */}
       {sendGuest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -596,6 +628,16 @@ export default function GuestManagement() {
                     </option>
                   ))}
                 </select>
+                {/* Preview button — only shown once a template is selected */}
+                {sendPageId && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewPageId(sendPageId)}
+                    className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-violet-300 text-violet-600 text-xs font-semibold hover:bg-violet-50 transition-colors"
+                  >
+                    <span>👁</span> Preview Selected Template
+                  </button>
+                )}
               </div>
             )}
 
