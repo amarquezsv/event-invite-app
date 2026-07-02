@@ -9,6 +9,16 @@ export default defineConfig({
     // Tailwind CSS v4 Vite plugin — no tailwind.config.js needed
     tailwindcss(),
   ],
+  server: {
+    // Proxy /api to the local Azure Functions runtime so the browser never
+    // makes a cross-origin request (eliminates CORS issues in local dev).
+    proxy: {
+      '/api': {
+        target: 'http://localhost:7071',
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     // Output to 'build/' instead of the Vite default 'dist/' so that Azure Static
     // Web Apps / Oryx can find the artifacts without extra configuration. Oryx
