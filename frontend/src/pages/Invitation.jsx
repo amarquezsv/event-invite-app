@@ -82,7 +82,7 @@ export default function Invitation() {
     <div className="pb-24">
       {/* Render custom template if available, otherwise use built-in poster */}
       {template?.html ? (
-        <div className="max-w-sm mx-auto shadow-xl overflow-hidden my-6 rounded-xl">
+        <div className="w-full max-w-sm sm:max-w-md mx-auto shadow-xl overflow-hidden my-6 rounded-xl px-4 sm:px-0">
           <InvitationRenderer
             templateHtml={template.html}
             templateCss={template.css}
@@ -100,7 +100,7 @@ export default function Invitation() {
           <p className="text-center text-xs text-red-600 mb-2">{confirmErr}</p>
         )}
 
-        <div className="max-w-sm mx-auto flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+        <div className="max-w-2xl mx-auto flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
           <p className="text-sm text-slate-600 text-center sm:text-left">
             <span className="font-semibold text-slate-800">{guest.seats}</span>{' '}
             seat{guest.seats !== 1 ? 's' : ''} reserved for you

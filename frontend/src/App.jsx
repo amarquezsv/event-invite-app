@@ -30,6 +30,8 @@ function ProtectedRoute({ children }) {
 
 /**
  * PublicShell — wraps public pages in the shared Header / Footer layout.
+ * Invitation-specific routes (/invite, /confirmed) are intentionally excluded
+ * so guests see only the invitation with no navigation or admin links.
  */
 function PublicShell() {
   return (
@@ -37,14 +39,35 @@ function PublicShell() {
       <Header />
       <main className="flex-1">
         <Routes>
-          <Route path="/"                   element={<Home />} />
-          <Route path="/invite/:guestId"    element={<Invitation />} />
-          <Route path="/confirmed"          element={<Confirmation />} />
+          <Route path="/"                              element={<Home />} />
           {/* Multi-event preview page (public — admins open from guest table) */}
-          <Route path="/preview/:eventId/:guestId" element={<PreviewPage />} />
+          <Route path="/preview/:eventId/:guestId"     element={<PreviewPage />} />
         </Routes>
       </main>
       <Footer />
+    </div>
+  )
+}
+
+/**
+ * InvitationShell — bare wrapper for guest-facing invitation routes.
+ * No header, no navigation — guests only see the invitation and a minimal footer.
+ */
+function InvitationShell() {
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50">
+      <main className="flex-1">
+        <Routes>
+          <Route path="/invite/:guestId" element={<Invitation />} />
+          <Route path="/confirmed"       element={<Confirmation />} />
+        </Routes>
+      </main>
+      {/* pb-20 keeps the text above the sticky CTA bar on the invite route */}
+      <footer className="py-6 pb-20 text-center border-t border-slate-200 bg-white">
+        <p className="text-sm text-slate-500">
+          &copy; {new Date().getFullYear()} EventInvite App. All rights reserved.
+        </p>
+      </footer>
     </div>
   )
 }
@@ -93,7 +116,11 @@ export default function App() {
             <Route path="components"       element={<ComponentCatalog />} />
           </Route>
 
-          {/* All public routes share the Header + Footer shell */}
+          {/* Guest-facing invitation routes — no header, no footer, no nav */}
+          <Route path="/invite/*" element={<InvitationShell />} />
+          <Route path="/confirmed" element={<InvitationShell />} />
+
+          {/* All remaining public routes share the Header + Footer shell */}
           <Route path="/*" element={<PublicShell />} />
         </Routes>
       </BrowserRouter>
