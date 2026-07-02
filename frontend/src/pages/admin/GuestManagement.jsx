@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import {
   getGuests, getEvents, addGuest, updateGuest, deleteGuest,
-  generateInviteLink, generateWhatsAppMsg,
+  generateInviteLink, generateWhatsAppMsg, listInvitationPages,
 } from '../../services/api'
 import WhatsAppButton from '../../components/admin/WhatsAppButton'
 import { getCountryFromPhone } from '../../utils/phoneCountry'
@@ -35,10 +35,13 @@ export default function GuestManagement() {
   const [deleting, setDeleting] = useState(null)
 
   // New-guest form
-  const EMPTY = { name: '', whatsapp: '', seats: 2, customNotes: '' }
+  const EMPTY = { name: '', whatsapp: '', seats: 2, customNotes: '', invitationPageId: '' }
   const [form,      setForm]      = useState(EMPTY)
   const [adding,    setAdding]    = useState(false)
   const [formError, setFormError] = useState(null)
+
+  // Invitation pages for the selected event
+  const [invitationPages, setInvitationPages] = useState([])
 
   // Load events once on mount
   useEffect(() => {
@@ -55,6 +58,17 @@ export default function GuestManagement() {
       setSearchParams({}, { replace: true })
     }
   }, [selectedEventId, setSearchParams])
+
+  // Load invitation pages whenever the selected event changes
+  useEffect(() => {
+    if (!selectedEventId) { setInvitationPages([]); return }
+    listInvitationPages()
+      .then((pages) => {
+        const filtered = (Array.isArray(pages) ? pages : []).filter((p) => p.eventId === selectedEventId)
+        setInvitationPages(filtered)
+      })
+      .catch(() => {})
+  }, [selectedEventId])
 
   const loadGuests = useCallback(async () => {
     setLoading(true)
@@ -103,6 +117,15 @@ export default function GuestManagement() {
       setGuests((prev) => prev.map((g) => (g.id === guest.id ? updated : g)))
     } catch {
       alert('Failed to update guest status.')
+    }
+  }
+
+  async function handleTemplateChange(guestId, invitationPageId) {
+    try {
+      const updated = await updateGuest(guestId, { invitationPageId: invitationPageId || null })
+      setGuests((prev) => prev.map((g) => (g.id === guestId ? updated : g)))
+    } catch {
+      alert('Failed to update template.')
     }
   }
 
@@ -263,6 +286,28 @@ export default function GuestManagement() {
             />
           </div>
 
+          {/* Template selector — only shown when the event has invitation pages */}
+          {selectedEventId && invitationPages.length > 0 && (
+            <div className="flex-1 min-w-44">
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Invitation Template
+              </label>
+              <select
+                name="invitationPageId"
+                value={form.invitationPageId}
+                onChange={handleFormChange}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="">— Event default —</option>
+                {invitationPages.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}{p.isActive ? ' ✓' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={adding}
@@ -291,7 +336,9 @@ export default function GuestManagement() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {['Name', 'WhatsApp', 'Seats', 'Notes', 'Status', 'Actions'].map((h) => (
+                  {['Name', 'WhatsApp', 'Seats', 'Notes',
+                    ...(invitationPages.length > 0 ? ['Template'] : []),
+                    'Status', 'Actions'].map((h) => (
                     <th
                       key={h}
                       className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
@@ -327,6 +374,24 @@ export default function GuestManagement() {
                     </td>
                     <td className="px-4 py-3 text-slate-600">{g.seats}</td>
                     <td className="px-4 py-3 text-slate-400 max-w-xs truncate">{g.customNotes}</td>
+
+                    {/* Template selector — only visible when the event has pages */}
+                    {invitationPages.length > 0 && (
+                      <td className="px-4 py-3">
+                        <select
+                          value={g.invitationPageId ?? ''}
+                          onChange={(e) => handleTemplateChange(g.id, e.target.value)}
+                          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-violet-400 max-w-35"
+                        >
+                          <option value="">Default</option>
+                          {invitationPages.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}{p.isActive ? ' ✓' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <button
                         onClick={() => handleToggleConfirmed(g)}

@@ -12,7 +12,7 @@ const { getContainer } = require('../shared/cosmosClient')
  *   seats     (number)  — number of seats reserved (≥ 1)
  */
 module.exports = async function (context, req) {
-  const { name, whatsapp, seats } = req.body ?? {}
+  const { name, whatsapp, seats, eventId, customNotes, invitationPageId } = req.body ?? {}
 
   if (!name?.trim()) {
     context.res = { status: 400, body: { error: 'Guest name is required.' } }
@@ -47,6 +47,7 @@ module.exports = async function (context, req) {
       seats: seatCount,
       confirmed: false,
       inviteLink: `${baseUrl}/invite/${guestId}`,
+      invitationPageId: invitationPageId ?? null,
       createdAt: new Date().toISOString(),
     }
 

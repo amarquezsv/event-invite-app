@@ -108,9 +108,11 @@ module.exports = async function (context, req) {
           .fetchAll()
         invitationPages = allMeta ?? []
 
-        // Full HTML only for the default page (active one, or most recent)
+        // Full HTML: guest's pinned page → event's active page → most recent
         if (invitationPages.length > 0) {
-          const defaultId = invitationPages.find((p) => p.isActive)?.id ?? invitationPages[0].id
+          const defaultId = guest.invitationPageId
+            || invitationPages.find((p) => p.isActive)?.id
+            || invitationPages[0].id
           const { resources: full } = await pageContainer.items
             .query({
               query:      'SELECT * FROM c WHERE c.id = @id',

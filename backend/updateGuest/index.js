@@ -52,8 +52,11 @@ module.exports = async function (context, req) {
         updates.confirmed !== undefined
           ? Boolean(updates.confirmed)
           : existing.confirmed,
-      eventId:     updates.eventId?.trim()     ?? existing.eventId ?? null,
-      customNotes: updates.customNotes?.trim() ?? existing.customNotes ?? '',
+      eventId:          updates.eventId?.trim()     ?? existing.eventId ?? null,
+      customNotes:      updates.customNotes?.trim() ?? existing.customNotes ?? '',
+      invitationPageId: updates.invitationPageId !== undefined
+        ? (updates.invitationPageId || null)
+        : (existing.invitationPageId ?? null),
       updatedAt: new Date().toISOString(),
     }
 
