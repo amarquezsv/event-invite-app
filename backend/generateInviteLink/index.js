@@ -91,6 +91,22 @@ module.exports = async function (context, req) {
       } catch (_) { /* non-fatal — template preview falls back gracefully */ }
     }
 
+    // Fetch the admin-designed invitation page linked to this event (if any).
+    // The invitation page takes precedence over the template when rendering.
+    let invitationPage = null
+    if (event.id) {
+      try {
+        const pageContainer = await getContainer(process.env.COSMOS_CONTAINER_INVITATION_PAGES)
+        const { resources: pages } = await pageContainer.items
+          .query({
+            query: 'SELECT TOP 1 * FROM c WHERE c.eventId = @eventId ORDER BY c._ts DESC',
+            parameters: [{ name: '@eventId', value: event.id }],
+          })
+          .fetchAll()
+        invitationPage = pages[0] ?? null
+      } catch (_) { /* non-fatal */ }
+    }
+
     // Build token map for the frontend renderer
     const palette  = event.colorPalette ?? {}
     const tokenMap = {
@@ -119,6 +135,7 @@ module.exports = async function (context, req) {
         guest,
         event,
         template,
+        invitationPage,
         tokenMap,
         inviteLink,
         whatsappUrl,

@@ -4,10 +4,11 @@ import Header from './components/Header'
 import Footer from './components/Footer'
 
 // Public pages
-import Home         from './pages/Home'
-import Invitation   from './pages/Invitation'
-import Confirmation from './pages/Confirmation'
-import PreviewPage  from './pages/PreviewPage'
+import Home            from './pages/Home'
+import Invitation      from './pages/Invitation'
+import Confirmation    from './pages/Confirmation'
+import PreviewPage     from './pages/PreviewPage'
+import InvitationPage  from './pages/InvitationPage'
 
 // Admin shell & pages
 import AdminLogin        from './components/admin/AdminLogin'
@@ -19,6 +20,7 @@ import GuestManagement   from './pages/admin/GuestManagement'
 import TemplateManager   from './pages/admin/TemplateManager'
 import TemplateBuilder   from './pages/admin/TemplateBuilder'
 import ComponentCatalog  from './pages/admin/ComponentCatalog'
+import InvitationEditor  from './pages/admin/InvitationEditor'
 
 /**
  * ProtectedRoute — redirects unauthenticated users to /admin/login.
@@ -107,14 +109,18 @@ export default function App() {
             }
           >
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard"        element={<Dashboard />} />
-            <Route path="events"           element={<EventManager />} />
-            <Route path="event"            element={<EventConfig />} />
-            <Route path="guests"           element={<GuestManagement />} />
-            <Route path="templates"        element={<TemplateManager />} />
-            <Route path="template-builder" element={<TemplateBuilder />} />
-            <Route path="components"       element={<ComponentCatalog />} />
+            <Route path="dashboard"           element={<Dashboard />} />
+            <Route path="events"              element={<EventManager />} />
+            <Route path="event"               element={<EventConfig />} />
+            <Route path="guests"              element={<GuestManagement />} />
+            <Route path="invitation-editor"   element={<InvitationEditor />} />
+            <Route path="templates"           element={<TemplateManager />} />
+            <Route path="template-builder"    element={<TemplateBuilder />} />
+            <Route path="components"          element={<ComponentCatalog />} />
           </Route>
+
+          {/* Full-screen public invitation page — no shell, no nav */}
+          <Route path="/page/:id" element={<InvitationPage />} />
 
           {/* Guest-facing invitation routes — no header, no footer, no nav */}
           <Route path="/invite/*" element={<InvitationShell />} />

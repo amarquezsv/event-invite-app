@@ -2,13 +2,14 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 
 const NAV_ITEMS = [
-  { to: '/admin/dashboard',        label: 'Dashboard' },
-  { to: '/admin/events',           label: 'Events' },
-  { to: '/admin/guests',           label: 'Guests' },
-  { to: '/admin/templates',        label: 'Templates' },
-  { to: '/admin/template-builder', label: 'Builder' },
-  { to: '/admin/components',       label: 'Components' },
-  { to: '/admin/event',            label: 'Legacy Config' },
+  { to: '/admin/dashboard',          label: 'Dashboard' },
+  { to: '/admin/events',             label: 'Events' },
+  { to: '/admin/guests',             label: 'Guests' },
+  { to: '/admin/invitation-editor',  label: 'Invitations' },
+  { to: '/admin/templates',          label: 'Templates' },
+  { to: '/admin/template-builder',   label: 'Builder' },
+  { to: '/admin/components',         label: 'Components' },
+  { to: '/admin/event',              label: 'Legacy Config' },
 ]
 
 /**

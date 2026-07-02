@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import InvitationPoster from '../components/invitation/InvitationPoster'
 import InvitationRenderer from '../components/invitation/InvitationRenderer'
 import { generateInviteLink, confirmAttendance } from '../services/api'
+import { replaceTokens } from '../utils/replaceTokens'
 
 /**
  * Invitation — public, guest-specific invitation page.
@@ -73,10 +74,56 @@ export default function Invitation() {
     )
   }
 
-  const { guest, event, template, tokenMap } = data
+  const { guest, event, template, tokenMap, invitationPage } = data
   const alreadyConfirmed = guest?.confirmed
 
-  // ── Invitation poster + sticky CTA ───────────────────────────
+  // ── Full HTML invitation page (admin-designed) ───────────────────────────
+  // Takes precedence over the legacy template / built-in poster.
+
+  if (invitationPage?.html) {
+    // Apply token replacement so {guestName}, {eventName}, etc. become real values
+    const renderedHtml = replaceTokens(invitationPage.html, tokenMap ?? {})
+
+    return (
+      <>
+        {/* Admin-designed HTML in a sandboxed full-viewport iframe */}
+        <iframe
+          srcDoc={renderedHtml}
+          title={invitationPage.name ?? 'Invitation'}
+          className="w-full border-0 block"
+          style={{ height: '100svh' }}
+          sandbox="allow-scripts allow-popups"
+        />
+        {/* Sticky confirmation CTA overlays the iframe */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 px-4 py-4">
+          {confirmErr && (
+            <p className="text-center text-xs text-red-600 mb-2">{confirmErr}</p>
+          )}
+          <div className="max-w-2xl mx-auto flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+            <p className="text-sm text-slate-600 text-center sm:text-left">
+              <span className="font-semibold text-slate-800">{guest.seats}</span>{' '}
+              seat{guest.seats !== 1 ? 's' : ''} reserved for you
+            </p>
+            {alreadyConfirmed ? (
+              <span className="text-sm font-semibold text-green-600">
+                ✓ Attendance confirmed — see you there!
+              </span>
+            ) : (
+              <button
+                onClick={handleConfirm}
+                disabled={confirming}
+                className="rounded-full bg-violet-600 px-8 py-3 text-white font-semibold hover:bg-violet-700 disabled:opacity-60 transition-colors shadow-md whitespace-nowrap"
+              >
+                {confirming ? 'Confirming…' : 'Reserve My Seats'}
+              </button>
+            )}
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  // ── Invitation poster + sticky CTA ─────────────────────────────────
 
   return (
     <div className="pb-24">

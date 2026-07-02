@@ -82,3 +82,19 @@ export const generatePreview     = (eventId, guestId) =>
 export const generateWhatsAppMsg = (eventId, guestId) =>
   request('GET', `/whatsapp/${encodeURIComponent(eventId)}/${encodeURIComponent(guestId)}`)
 
+// ── Invitation Pages (admin-designed full HTML pages) ─────────────────────────
+export const listInvitationPages   = ()         => request('GET',    '/invitation-pages')
+export const getInvitationPageById = (id)       => request('GET',    `/invitation-pages/${encodeURIComponent(id)}`)
+export const createInvitationPage  = (data)     => request('POST',   '/invitation-pages', data)
+export const updateInvitationPage  = (id, data) => request('PUT',    `/invitation-pages/${encodeURIComponent(id)}`, data)
+export const deleteInvitationPage  = (id)       => request('DELETE', `/invitation-pages/${encodeURIComponent(id)}`)
+
+/**
+ * Uploads a base64-encoded image to the invitation page's asset storage.
+ * @param {string} pageId
+ * @param {{ filename: string, contentType: string, data: string }} asset
+ */
+export function uploadInvitationAsset(pageId, asset) {
+  return request('POST', `/invitation-pages/${encodeURIComponent(pageId)}/assets`, asset)
+}
+
