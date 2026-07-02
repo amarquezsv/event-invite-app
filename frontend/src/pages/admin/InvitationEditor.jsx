@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   listInvitationPages,
+  getInvitationPageById,
   createInvitationPage,
   updateInvitationPage,
   deleteInvitationPage,
@@ -93,12 +94,18 @@ export default function InvitationEditor() {
     setSaved(false)
   }
 
-  function startEdit(page) {
-    setEditing(page.id)
-    setForm({ name: page.name, eventId: page.eventId ?? '', html: page.html ?? DEFAULT_HTML })
-    setAssets(page.assets ?? [])
+  async function startEdit(page) {
     setError(null)
     setSaved(false)
+    // The list response omits `html` for performance — fetch the full document first.
+    try {
+      const full = await getInvitationPageById(page.id)
+      setEditing(full.id)
+      setForm({ name: full.name, eventId: full.eventId ?? '', html: full.html ?? DEFAULT_HTML })
+      setAssets(full.assets ?? [])
+    } catch {
+      setError('Failed to load invitation content. Please try again.')
+    }
   }
 
   function cancelEdit() {
