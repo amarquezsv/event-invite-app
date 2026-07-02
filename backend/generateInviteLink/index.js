@@ -96,45 +96,43 @@ module.exports = async function (context, req) {
     let invitationPage  = null
     let invitationPages = []
     if (event.id) {
-      try {
-        const pageContainer = await getContainer((process.env.COSMOS_CONTAINER_INVITATION_PAGES ?? 'invitation-pages'))
+      const pageContainer = await getContainer((process.env.COSMOS_CONTAINER_INVITATION_PAGES ?? 'invitation-pages'))
 
-        // Light metadata query for the template picker
+      // ── Step 1: metadata list (separate try so an error here doesn't block the pinned-page lookup) ──
+      try {
+        // ORDER BY a single field only — multi-field ORDER BY needs a composite index
+        // that may not exist; we sort by isActive in JS after fetching.
         const { resources: allMeta } = await pageContainer.items
           .query({
-            query: 'SELECT c.id, c.name, c.isActive FROM c WHERE c.eventId = @eventId ORDER BY c.isActive DESC, c._ts DESC',
+            query: 'SELECT c.id, c.name, c.isActive FROM c WHERE c.eventId = @eventId ORDER BY c._ts DESC',
             parameters: [{ name: '@eventId', value: event.id }],
           })
           .fetchAll()
-        invitationPages = allMeta ?? []
+        // Sort active pages first (mirrors the original intent)
+        invitationPages = (allMeta ?? []).sort((a, b) => (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0))
+      } catch (_) { /* non-fatal — list may be empty */ }
 
-        // If the guest has a pinned page, fetch it directly — this must happen
-        // regardless of whether the event has other pages (invitationPages may be
-        // empty if the page's eventId doesn't match, which would otherwise skip
-        // the whole block and silently fall back to the classic template).
-        if (guest.invitationPageId) {
-          const { resources: pinned } = await pageContainer.items
-            .query({
-              query:      'SELECT * FROM c WHERE c.id = @id',
-              parameters: [{ name: '@id', value: guest.invitationPageId }],
-            })
-            .fetchAll()
-          invitationPage = pinned[0] ?? null
-        }
+      // ── Step 2: pinned page — use a point-read (partition key = id) so this never
+      //    fails due to cross-partition query restrictions or a missing composite index ──
+      if (guest.invitationPageId) {
+        try {
+          const { resource: pinned } = await pageContainer
+            .item(guest.invitationPageId, guest.invitationPageId)
+            .read()
+          invitationPage = pinned ?? null
+        } catch (_) { /* non-fatal — page may have been deleted */ }
+      }
 
-        // No pinned page found — fall back to active page or most recent for this event
-        if (!invitationPage && invitationPages.length > 0) {
-          const defaultId = invitationPages.find((p) => p.isActive)?.id
-            || invitationPages[0].id
-          const { resources: full } = await pageContainer.items
-            .query({
-              query:      'SELECT * FROM c WHERE c.id = @id',
-              parameters: [{ name: '@id', value: defaultId }],
-            })
-            .fetchAll()
-          invitationPage = full[0] ?? null
-        }
-      } catch (_) { /* non-fatal */ }
+      // ── Step 3: fallback — active page or most-recent for this event ──
+      if (!invitationPage && invitationPages.length > 0) {
+        try {
+          const defaultId = invitationPages.find((p) => p.isActive)?.id ?? invitationPages[0].id
+          const { resource: fallback } = await pageContainer
+            .item(defaultId, defaultId)
+            .read()
+          invitationPage = fallback ?? null
+        } catch (_) { /* non-fatal */ }
+      }
     }
 
     // Build token map for the frontend renderer

@@ -64,20 +64,21 @@ module.exports = async function (context, req) {
 
     // Fetch the invitation page — guest's pinned page takes priority over the active page
     let invitationPage = null
-    try {
-      if (guest.invitationPageId) {
-        // Guest has a specific template assigned — fetch it directly
-        const { resources: pinned } = await pageContainer.items
-          .query({
-            query:      'SELECT * FROM c WHERE c.id = @id',
-            parameters: [{ name: '@id', value: guest.invitationPageId }],
-          })
-          .fetchAll()
-        invitationPage = pinned[0] ?? null
-      }
 
-      if (!invitationPage) {
-        // Fall back to the active page for the event, then most recent
+    // Use separate try blocks so a failure in one doesn't block the others.
+    // Use point-reads (container.item(id, id)) to avoid cross-partition query issues.
+    if (guest.invitationPageId) {
+      try {
+        const { resource: pinned } = await pageContainer
+          .item(guest.invitationPageId, guest.invitationPageId)
+          .read()
+        invitationPage = pinned ?? null
+      } catch (_) { /* non-fatal */ }
+    }
+
+    if (!invitationPage) {
+      // Fall back to the active page for the event, then most recent
+      try {
         const { resources: activePages } = await pageContainer.items
           .query({
             query:      'SELECT TOP 1 * FROM c WHERE c.eventId = @eventId AND c.isActive = true',
@@ -85,18 +86,30 @@ module.exports = async function (context, req) {
           })
           .fetchAll()
         if (activePages?.length) {
-          invitationPage = activePages[0]
-        } else {
-          const { resources: pages } = await pageContainer.items
-            .query({
-              query:      'SELECT TOP 1 * FROM c WHERE c.eventId = @eventId ORDER BY c._ts DESC',
-              parameters: [{ name: '@eventId', value: event.id }],
-            })
-            .fetchAll()
-          invitationPage = pages[0] ?? null
+          const { resource: active } = await pageContainer
+            .item(activePages[0].id, activePages[0].id)
+            .read()
+          invitationPage = active ?? null
         }
-      }
-    } catch (_) { /* non-fatal */ }
+      } catch (_) { /* non-fatal */ }
+    }
+
+    if (!invitationPage) {
+      try {
+        const { resources: pages } = await pageContainer.items
+          .query({
+            query:      'SELECT TOP 1 * FROM c WHERE c.eventId = @eventId ORDER BY c._ts DESC',
+            parameters: [{ name: '@eventId', value: event.id }],
+          })
+          .fetchAll()
+        if (pages?.length) {
+          const { resource: recent } = await pageContainer
+            .item(pages[0].id, pages[0].id)
+            .read()
+          invitationPage = recent ?? null
+        }
+      } catch (_) { /* non-fatal */ }
+    }
 
     const baseUrl    = (process.env.APP_BASE_URL ?? '').replace(/\/$/, '')
     const inviteLink = guest.inviteLink ?? `${baseUrl}/invite/${guest.id}`
