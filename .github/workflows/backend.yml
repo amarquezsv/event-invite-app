@@ -1,15 +1,15 @@
 # Backend CI/CD Workflow — Azure Functions (Node.js)
-# Triggers on push or pull_request targeting the main branch.
+# Triggers on push or pull_request targeting the master branch.
 
 name: Backend — Deploy to Azure Functions
 
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
     branches:
-      - main
+      - master
 
 env:
   # The name of the existing Azure Function App to deploy to.
