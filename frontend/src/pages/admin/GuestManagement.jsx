@@ -29,10 +29,15 @@ export default function GuestManagement() {
 
   const [selectedEventId, setSelectedEventId] = useState(urlEventId)
 
-  // WhatsApp URLs loaded on demand
-  const [waUrls, setWaUrls] = useState({})
   // Delete confirmation
   const [deleting, setDeleting] = useState(null)
+
+  // Send Invitation modal
+  const [sendGuest,    setSendGuest]    = useState(null)   // guest being sent to
+  const [sendFormat,   setSendFormat]   = useState('classic') // 'classic' | 'custom'
+  const [sendPageId,   setSendPageId]   = useState('')
+  const [sendingInvite, setSendingInvite] = useState(false)
+  const [sendWaUrl,    setSendWaUrl]    = useState(null)
 
   // New-guest form
   const EMPTY = { name: '', whatsapp: '', seats: 2, customNotes: '', invitationPageId: '' }
@@ -129,17 +134,39 @@ export default function GuestManagement() {
     }
   }
 
-  async function handleFetchWhatsApp(guest) {
+  // ── Send Invitation modal ─────────────────────────────────────
+
+  function openSendModal(guest) {
+    setSendGuest(guest)
+    // Default to 'custom' when the guest already has a template, else 'classic'
+    setSendFormat(guest.invitationPageId ? 'custom' : 'classic')
+    setSendPageId(guest.invitationPageId ?? '')
+    setSendWaUrl(null)
+  }
+
+  function closeSendModal() {
+    setSendGuest(null)
+    setSendWaUrl(null)
+  }
+
+  async function handlePrepareInvite() {
+    if (!sendGuest) return
+    setSendingInvite(true)
     try {
-      if (guest.eventId) {
-        const data = await generateWhatsAppMsg(guest.eventId, guest.id)
-        setWaUrls((prev) => ({ ...prev, [guest.id]: data.whatsappUrl }))
-      } else {
-        const data = await generateInviteLink(guest.id)
-        setWaUrls((prev) => ({ ...prev, [guest.id]: data.whatsappUrl }))
-      }
+      // Set or clear the guest's invitationPageId based on the chosen format
+      const pageId = sendFormat === 'custom' ? (sendPageId || null) : null
+      const updated = await updateGuest(sendGuest.id, { invitationPageId: pageId })
+      setGuests((prev) => prev.map((g) => (g.id === sendGuest.id ? updated : g)))
+
+      // Generate the WhatsApp URL
+      const data = sendGuest.eventId
+        ? await generateWhatsAppMsg(sendGuest.eventId, sendGuest.id)
+        : await generateInviteLink(sendGuest.id)
+      setSendWaUrl(data.whatsappUrl)
     } catch {
-      alert('Failed to generate WhatsApp link.')
+      alert('Failed to prepare invite.')
+    } finally {
+      setSendingInvite(false)
     }
   }
 
@@ -435,17 +462,13 @@ export default function GuestManagement() {
                           Copy Link
                         </button>
 
-                        {/* WhatsApp */}
-                        {waUrls[g.id] ? (
-                          <WhatsAppButton whatsappUrl={waUrls[g.id]} />
-                        ) : (
-                          <button
-                            onClick={() => handleFetchWhatsApp(g)}
-                            className="text-xs text-slate-500 hover:text-slate-700 font-medium whitespace-nowrap"
-                          >
-                            WhatsApp ↗
-                          </button>
-                        )}
+                        {/* WhatsApp / Send Invite */}
+                        <button
+                          onClick={() => openSendModal(g)}
+                          className="text-xs bg-green-600 text-white px-2.5 py-1 rounded-full font-semibold hover:bg-green-700 transition-colors whitespace-nowrap"
+                        >
+                          Send Invite ↗
+                        </button>
 
                         {/* Delete */}
                         <button
@@ -491,6 +514,102 @@ export default function GuestManagement() {
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Send Invitation modal ──────────────────────────────── */}
+      {sendGuest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30" onClick={closeSendModal} />
+          <div className="relative bg-white rounded-2xl p-6 shadow-xl w-full max-w-sm">
+            <h3 className="font-bold text-slate-900 mb-0.5">Send Invitation</h3>
+            <p className="text-sm text-slate-500 mb-5">
+              {sendGuest.name} &middot; {sendGuest.whatsapp}
+            </p>
+
+            {/* Format tabs */}
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              Invitation Format
+            </p>
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => { setSendFormat('classic'); setSendWaUrl(null) }}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  sendFormat === 'classic'
+                    ? 'bg-violet-600 text-white border-violet-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                Classic
+                <span className="block text-xs font-normal opacity-70">Built-in poster</span>
+              </button>
+              <button
+                onClick={() => { setSendFormat('custom'); setSendWaUrl(null) }}
+                disabled={invitationPages.length === 0}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  sendFormat === 'custom'
+                    ? 'bg-violet-600 text-white border-violet-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                } disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                Custom Template
+                <span className="block text-xs font-normal opacity-70">
+                  {invitationPages.length === 0 ? 'No templates for this event' : 'Invitation Editor'}
+                </span>
+              </button>
+            </div>
+
+            {/* Template picker (custom only) */}
+            {sendFormat === 'custom' && invitationPages.length > 0 && (
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Select Template
+                </label>
+                <select
+                  value={sendPageId}
+                  onChange={(e) => { setSendPageId(e.target.value); setSendWaUrl(null) }}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                  <option value="">— Pick a template —</option>
+                  {invitationPages.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}{p.isActive ? ' ✓ active' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* WhatsApp link (shown after preparation) */}
+            {sendWaUrl ? (
+              <div className="mb-4">
+                <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3">
+                  Ready! Click the button below to open WhatsApp.
+                  {sendFormat === 'custom' && (
+                    <span className="block mt-0.5 text-green-600">
+                      The invitation will show the selected template.
+                    </span>
+                  )}
+                </p>
+                <WhatsAppButton whatsappUrl={sendWaUrl} />
+              </div>
+            ) : (
+              <button
+                onClick={handlePrepareInvite}
+                disabled={sendingInvite || (sendFormat === 'custom' && !sendPageId)}
+                className="w-full mb-4 py-2.5 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors"
+              >
+                {sendingInvite ? 'Preparing…' : 'Prepare WhatsApp Message'}
+              </button>
+            )}
+
+            <button
+              onClick={closeSendModal}
+              className="w-full py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
