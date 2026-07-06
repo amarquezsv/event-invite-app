@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext'
 import { LanguageProvider } from './context/LanguageContext'
 import Header from './components/Header'
@@ -22,13 +22,18 @@ import TemplateManager   from './pages/admin/TemplateManager'
 import TemplateBuilder   from './pages/admin/TemplateBuilder'
 import ComponentCatalog  from './pages/admin/ComponentCatalog'
 import InvitationEditor  from './pages/admin/InvitationEditor'
+import AdminPreviewPage  from './pages/admin/AdminPreviewPage'
 
 /**
  * ProtectedRoute — redirects unauthenticated users to /admin/login.
  */
 function ProtectedRoute({ children }) {
   const { authenticated } = useAdminAuth()
-  return authenticated ? children : <Navigate to="/admin/login" replace />
+  const location = useLocation()
+  if (!authenticated) {
+    return <Navigate to="/admin/login" state={{ from: location }} replace />
+  }
+  return children
 }
 
 /**
@@ -117,6 +122,7 @@ export default function App() {
             <Route path="templates"           element={<TemplateManager />} />
             <Route path="template-builder"    element={<TemplateBuilder />} />
             <Route path="components"          element={<ComponentCatalog />} />
+            <Route path="preview/:eventId/:guestId" element={<AdminPreviewPage />} />
           </Route>
 
           {/* Full-screen public invitation page — no shell, no nav */}

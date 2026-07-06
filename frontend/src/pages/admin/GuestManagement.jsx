@@ -473,7 +473,7 @@ export default function GuestManagement() {
                         {/* Preview invitation */}
                         {g.eventId ? (
                           <Link
-                            to={`/preview/${g.eventId}/${g.id}`}
+                            to={`/admin/preview/${g.eventId}/${g.id}`}
                             target="_blank"
                             className="text-xs text-violet-600 hover:text-violet-800 font-medium whitespace-nowrap"
                           >

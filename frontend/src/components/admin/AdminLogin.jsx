@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 
 /**
@@ -10,6 +10,7 @@ import { useAdminAuth } from '../../context/AdminAuthContext'
 export default function AdminLogin() {
   const { login }  = useAdminAuth()
   const navigate   = useNavigate()
+  const location   = useLocation()
   const [key, setKey]     = useState('')
   const [error, setError] = useState('')
 
@@ -17,7 +18,9 @@ export default function AdminLogin() {
     e.preventDefault()
     const ok = login(key)
     if (ok) {
-      navigate('/admin/dashboard', { replace: true })
+      // Redirect back to the page the user was trying to reach, or dashboard
+      const from = location.state?.from?.pathname ?? '/admin/dashboard'
+      navigate(from, { replace: true })
     } else {
       setError('Invalid admin key. Please try again.')
     }
