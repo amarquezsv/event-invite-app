@@ -38,14 +38,16 @@ export default function GuestManagement() {
   const [sendGuest,    setSendGuest]    = useState(null)   // guest being sent to
   const [sendFormat,   setSendFormat]   = useState('classic') // 'classic' | 'custom'
   const [sendPageId,   setSendPageId]   = useState('')
+  const [sendBuiltinId, setSendBuiltinId] = useState('')    // selected built-in template id
   const [sendingInvite, setSendingInvite] = useState(false)
   const [sendWaUrl,    setSendWaUrl]    = useState(null)
   // Pages available in the Send modal — loaded from the guest's own event
   const [sendModalPages, setSendModalPages] = useState([])
   // Full-screen template preview overlay inside the modal
   const [previewPageId, setPreviewPageId] = useState(null)
-  // invitationPageId confirmed saved in DB after last prepare
+  // What was actually saved in DB after last prepare (for success UI)
   const [savedInvitationPageId, setSavedInvitationPageId] = useState(null)
+  const [savedTemplateId,       setSavedTemplateId]       = useState(null)
   // Language for the WhatsApp message (independent of the UI language)
   const [sendLang, setSendLang] = useState('es')
 
@@ -168,12 +170,15 @@ export default function GuestManagement() {
 
   function openSendModal(guest) {
     setSendGuest(guest)
-    // Default to 'custom' when the guest already has a template, else 'classic'
+    // Default to 'custom' when the guest already has a page, else 'classic'
     setSendFormat(guest.invitationPageId ? 'custom' : 'classic')
     setSendPageId(guest.invitationPageId ?? '')
+    // Pre-select the built-in template the guest already has assigned
+    setSendBuiltinId(guest.templateId ?? '')
     setSendWaUrl(null)
     setSendModalPages([])
     setSavedInvitationPageId(null)
+    setSavedTemplateId(null)
     setPreviewPageId(null)
     setSendLang(lang) // default WA message language to current UI language
     // Load invitation pages for the guest's own event (not the list filter)
@@ -198,18 +203,27 @@ export default function GuestManagement() {
     setSendModalPages([])
     setPreviewPageId(null)
     setSavedInvitationPageId(null)
+    setSavedTemplateId(null)
+    setSendBuiltinId('')
   }
 
   async function handlePrepareInvite() {
     if (!sendGuest) return
     setSendingInvite(true)
     try {
-      // Set or clear the guest's invitationPageId based on the chosen format
-      const pageId = sendFormat === 'custom' ? (sendPageId || null) : null
-      const updated = await updateGuest(sendGuest.id, { invitationPageId: pageId })
+      // Save the chosen template/page to the guest record
+      let guestUpdates
+      if (sendFormat === 'custom') {
+        guestUpdates = { invitationPageId: sendPageId || null, templateId: null }
+      } else {
+        // Classic: save the selected built-in template (or clear for event default)
+        guestUpdates = { templateId: sendBuiltinId || null, invitationPageId: null }
+      }
+      const updated = await updateGuest(sendGuest.id, guestUpdates)
       setGuests((prev) => prev.map((g) => (g.id === sendGuest.id ? updated : g)))
-      // Record what was actually persisted in the DB so the success UI can confirm it
+      // Record what was actually persisted so the success UI can confirm it
       setSavedInvitationPageId(updated.invitationPageId ?? null)
+      setSavedTemplateId(updated.templateId ?? null)
 
       // Generate the WhatsApp URL in the selected language
       const data = sendGuest.eventId
@@ -655,6 +669,27 @@ export default function GuestManagement() {
               </button>
             </div>
 
+            {/* Built-in template picker (classic only) */}
+            {sendFormat === 'classic' && (
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  {t('guests.selectBuiltinTemplate')}
+                </label>
+                <select
+                  value={sendBuiltinId}
+                  onChange={(e) => { setSendBuiltinId(e.target.value); setSendWaUrl(null) }}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                  <option value="">{t('guests.eventDefaultTemplate')}</option>
+                  {BUILT_IN_TEMPLATES.map((tmpl) => (
+                    <option key={tmpl.id} value={tmpl.id}>
+                      {tmpl.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Template picker (custom only) */}
             {sendFormat === 'custom' && sendModalPages.length > 0 && (
               <div className="mb-4">
@@ -723,6 +758,10 @@ export default function GuestManagement() {
                   {savedInvitationPageId ? (
                     <span className="block mt-0.5 text-green-600">
                       {t('guests.templateSaved')} <strong>{sendModalPages.find((p) => p.id === savedInvitationPageId)?.name ?? savedInvitationPageId}</strong>
+                    </span>
+                  ) : savedTemplateId ? (
+                    <span className="block mt-0.5 text-green-600">
+                      {t('guests.templateSaved')} <strong>{BUILT_IN_TEMPLATES.find((tmpl) => tmpl.id === savedTemplateId)?.name ?? savedTemplateId}</strong>
                     </span>
                   ) : sendFormat === 'classic' ? (
                     <span className="block mt-0.5 text-green-600">{t('guests.usingClassic')}</span>
