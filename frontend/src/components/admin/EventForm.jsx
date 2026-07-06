@@ -7,8 +7,11 @@
  *   onSave    — async (formData) => void
  *   onCancel  — () => void
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ColorPaletteEditor from './ColorPaletteEditor'
+import BuiltInTemplatePicker from './BuiltInTemplatePicker'
+import { getRecommendedTemplateId } from '../invitation/builtInTemplates'
+import { useLang } from '../../context/LanguageContext'
 
 const CATEGORIES = [
   { value: 'wedding',     label: 'Wedding' },
@@ -22,14 +25,16 @@ const CATEGORIES = [
 ]
 
 const DEFAULT_PALETTE = {
-  color1: '#6d28d9',
-  color2: '#a78bfa',
-  color3: '#ddd6fe',
-  color4: '#1e1b4b',
+  color1: '#21418d',
+  color2: '#b8942d',
+  color3: '#f7f3ea',
+  color4: '#2e7d32',
   color5: '#ffffff',
 }
 
 export default function EventForm({ initial, templates = [], onSave, onCancel }) {
+  const { lang } = useLang()
+
   const [form, setForm] = useState({
     name:               initial?.name               ?? '',
     category:           initial?.category           ?? 'other',
@@ -37,11 +42,21 @@ export default function EventForm({ initial, templates = [], onSave, onCancel })
     time:               initial?.time               ?? '',
     location:           initial?.location           ?? '',
     address:            initial?.address            ?? '',
+    templateId:         initial?.templateId         ?? getRecommendedTemplateId(initial?.category ?? 'other'),
     selectedTemplateId: initial?.selectedTemplateId ?? '',
     colorPalette:       initial?.colorPalette       ?? DEFAULT_PALETTE,
   })
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState(null)
+
+  // When category changes on a NEW event (no initial data), auto-suggest a template
+  useEffect(() => {
+    if (initial) return  // don't override choices on edit
+    setForm((prev) => ({
+      ...prev,
+      templateId: getRecommendedTemplateId(prev.category),
+    }))
+  }, [form.category, initial])
 
   function handleField(e) {
     const { name, value } = e.target
@@ -145,17 +160,34 @@ export default function EventForm({ initial, templates = [], onSave, onCancel })
         />
       </div>
 
-      {/* Template */}
+      {/* Built-in Template Picker */}
+      <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+        <BuiltInTemplatePicker
+          value={form.templateId}
+          onChange={(id) => setForm((prev) => ({ ...prev, templateId: id }))}
+          eventCategory={form.category}
+          lang={lang}
+        />
+      </div>
+
+      {/* Custom (DB-stored) Template — shown only when templates exist */}
       {templates.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Invitation Template</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            {lang === 'en' ? 'Custom HTML Template (optional)' : 'Plantilla HTML Personalizada (opcional)'}
+          </label>
+          <p className="text-xs text-slate-400 mb-2">
+            {lang === 'en'
+              ? 'Override the built-in template with a custom HTML design stored in the database.'
+              : 'Reemplaza la plantilla integrada con un diseño HTML personalizado de la base de datos.'}
+          </p>
           <select
             name="selectedTemplateId"
             value={form.selectedTemplateId}
             onChange={handleField}
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-400"
           >
-            <option value="">— No template selected —</option>
+            <option value="">{lang === 'en' ? '— Use built-in template —' : '— Usar plantilla integrada —'}</option>
             {templates.map((t) => (
               <option key={t.id} value={t.id}>{t.name}</option>
             ))}

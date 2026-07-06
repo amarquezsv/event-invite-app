@@ -1,9 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import InvitationPoster from '../components/invitation/InvitationPoster'
 import InvitationRenderer from '../components/invitation/InvitationRenderer'
+import WeddingBodaTemplate from '../components/invitation/WeddingBodaTemplate'
 import { generateInviteLink, confirmAttendance, getInvitationPageById } from '../services/api'
 import { replaceTokens } from '../utils/replaceTokens'
+
+/**
+ * Registry of component-based invitation templates.
+ *
+ * When an invitationPage document has { componentType: 'wedding-boda' }
+ * (or another key), the matching React component is rendered directly —
+ * no iframe, no zoom hacks, fully responsive.
+ *
+ * To add a new template type:
+ *  1. Create MySuperTemplate.jsx in components/invitation/
+ *  2. Import it above.
+ *  3. Add the entry here.
+ */
+const COMPONENT_TEMPLATES = {
+  'wedding-boda': WeddingBodaTemplate,
+}
 
 /**
  * Invitation — public, guest-specific invitation page.
@@ -11,9 +28,10 @@ import { replaceTokens } from '../utils/replaceTokens'
  * URL: /invite/:guestId
  *
  * 1. Fetches guest + event data (and optional custom template) from the backend.
- * 2. If the event has a custom template, renders it via InvitationRenderer.
- * 3. Otherwise falls back to the built-in InvitationPoster.
- * 4. Shows a sticky bottom bar with the "Reserve My Seats" CTA.
+ * 2. If the invitation page has a componentType, renders a JSX template (responsive, animated).
+ * 3. If the page has raw HTML, renders it via a sandboxed iframe (legacy path).
+ * 4. Otherwise falls back to the built-in InvitationPoster.
+ * 5. Shows a bilingual sticky bottom bar with the confirm CTA.
  */
 export default function Invitation() {
   const { guestId }  = useParams()
@@ -94,21 +112,90 @@ export default function Invitation() {
   const { guest, event, template, tokenMap, invitationPages } = data
   const alreadyConfirmed = guest?.confirmed
 
+  // ── Language detection ─────────────────────────────────────────────────
+  // Priority: URL ?lang= param → event.lang → default 'es'
+  const urlLang = new URLSearchParams(window.location.search).get('lang')
+  const invLang = (urlLang === 'en' || urlLang === 'es')
+    ? urlLang
+    : (event?.lang ?? 'es')
+
+  // Bilingual strings for the sticky confirm bar
+  const i18n = invLang === 'es'
+    ? {
+        seatsLabel:    (n) => `${n} ${n === 1 ? 'lugar reservado' : 'lugares reservados'} para ti`,
+        confirmBtn:    'Confirmar Asistencia',
+        confirming:    'Confirmando…',
+        confirmed:     '✓ Asistencia confirmada — ¡te esperamos!',
+        confirmFailed: 'Error al confirmar asistencia. Por favor intenta de nuevo.',
+      }
+    : {
+        seatsLabel:    (n) => `${n} seat${n !== 1 ? 's' : ''} reserved for you`,
+        confirmBtn:    'Reserve My Seats',
+        confirming:    'Confirming…',
+        confirmed:     '✓ Attendance confirmed — see you there!',
+        confirmFailed: 'Failed to confirm attendance. Please try again.',
+      }
+
   // Template picker removed — guests always see their assigned template only
   const showPicker = false
   const templatePicker = null
 
-  // ── Full HTML invitation page (admin-designed) ───────────────────────────
-  // Takes precedence over the legacy template / built-in poster.
+  // ── Shared sticky confirm bar ──────────────────────────────────────────
+  const StickyBar = (
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 px-4 py-4">
+      {confirmErr && (
+        <p className="text-center text-xs text-red-600 mb-2">{i18n.confirmFailed}</p>
+      )}
+      <div className="max-w-2xl mx-auto flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+        <p className="text-sm text-slate-600 text-center sm:text-left">
+          <span className="font-semibold text-slate-800">{guest.seats}</span>{' '}
+          {i18n.seatsLabel(guest.seats).replace(/^\d+ /, '')}
+        </p>
+        {alreadyConfirmed ? (
+          <span className="text-sm font-semibold text-green-600">{i18n.confirmed}</span>
+        ) : (
+          <button
+            onClick={handleConfirm}
+            disabled={confirming}
+            className="rounded-full bg-violet-600 px-8 py-3 text-white font-semibold hover:bg-violet-700 disabled:opacity-60 transition-colors shadow-md whitespace-nowrap"
+          >
+            {confirming ? i18n.confirming : i18n.confirmBtn}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+
+  // ── Component-based invitation page (new responsive path) ──────────────
+  // When the invitation page has a `componentType`, render the JSX component
+  // directly — no iframe, no zoom scaling, fully responsive & animated.
+
+  if (selectedPage?.componentType) {
+    const InvComponent = COMPONENT_TEMPLATES[selectedPage.componentType]
+    if (InvComponent) {
+      return (
+        <>
+          {templatePicker}
+          <InvComponent
+            event={event}
+            guest={guest}
+            tokenMap={tokenMap ?? {}}
+            lang={invLang}
+          />
+          {StickyBar}
+        </>
+      )
+    }
+  }
+
+  // ── Full HTML invitation page (legacy iframe path) ─────────────────────
+  // Used when the page has raw HTML but no componentType.
 
   if (selectedPage?.html) {
-    // Apply token replacement so {guestName}, {eventName}, etc. become real values
     const renderedHtml = replaceTokens(selectedPage.html, tokenMap ?? {})
-
     return (
       <>
         {templatePicker}
-        {/* Admin-designed HTML in a sandboxed full-viewport iframe */}
         <iframe
           srcDoc={renderedHtml}
           title={selectedPage.name ?? 'Invitation'}
@@ -116,41 +203,16 @@ export default function Invitation() {
           style={{ height: '100svh', marginTop: showPicker ? '2.5rem' : 0 }}
           sandbox="allow-scripts allow-popups"
         />
-        {/* Sticky confirmation CTA overlays the iframe */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 px-4 py-4">
-          {confirmErr && (
-            <p className="text-center text-xs text-red-600 mb-2">{confirmErr}</p>
-          )}
-          <div className="max-w-2xl mx-auto flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-            <p className="text-sm text-slate-600 text-center sm:text-left">
-              <span className="font-semibold text-slate-800">{guest.seats}</span>{' '}
-              seat{guest.seats !== 1 ? 's' : ''} reserved for you
-            </p>
-            {alreadyConfirmed ? (
-              <span className="text-sm font-semibold text-green-600">
-                ✓ Attendance confirmed — see you there!
-              </span>
-            ) : (
-              <button
-                onClick={handleConfirm}
-                disabled={confirming}
-                className="rounded-full bg-violet-600 px-8 py-3 text-white font-semibold hover:bg-violet-700 disabled:opacity-60 transition-colors shadow-md whitespace-nowrap"
-              >
-                {confirming ? 'Confirming…' : 'Reserve My Seats'}
-              </button>
-            )}
-          </div>
-        </div>
+        {StickyBar}
       </>
     )
   }
 
-  // ── Invitation poster + sticky CTA ─────────────────────────────────
+  // ── Invitation poster + sticky CTA ─────────────────────────────────────
 
   return (
     <div className={`pb-24 ${showPicker ? 'pt-10' : ''}`}>
       {templatePicker}
-      {/* Render custom template if available, otherwise use built-in poster */}
       {template?.html ? (
         <div className="w-full max-w-sm sm:max-w-md mx-auto shadow-xl overflow-hidden my-6 rounded-xl px-4 sm:px-0">
           <InvitationRenderer
@@ -161,37 +223,14 @@ export default function Invitation() {
           />
         </div>
       ) : (
-        <InvitationPoster event={event} guest={guest} />
+        <InvitationPoster
+          event={event}
+          guest={guest}
+          tokenMap={tokenMap ?? {}}
+          lang={invLang}
+        />
       )}
-
-      {/* Sticky bottom action bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 px-4 py-4">
-        {confirmErr && (
-          <p className="text-center text-xs text-red-600 mb-2">{confirmErr}</p>
-        )}
-
-        <div className="max-w-2xl mx-auto flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-          <p className="text-sm text-slate-600 text-center sm:text-left">
-            <span className="font-semibold text-slate-800">{guest.seats}</span>{' '}
-            seat{guest.seats !== 1 ? 's' : ''} reserved for you
-          </p>
-
-          {alreadyConfirmed ? (
-            <span className="text-sm font-semibold text-green-600">
-              ✓ Attendance confirmed — see you there!
-            </span>
-          ) : (
-            <button
-              onClick={handleConfirm}
-              disabled={confirming}
-              className="rounded-full bg-violet-600 px-8 py-3 text-white font-semibold hover:bg-violet-700 disabled:opacity-60 transition-colors shadow-md whitespace-nowrap"
-            >
-              {confirming ? 'Confirming…' : 'Reserve My Seats'}
-            </button>
-          )}
-        </div>
-      </div>
+      {StickyBar}
     </div>
   )
 }
-

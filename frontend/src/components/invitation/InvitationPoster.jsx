@@ -1,6 +1,7 @@
-import ElegantTemplate from './ElegantTemplate'
-import ModernTemplate  from './ModernTemplate'
-import ClassicTemplate from './ClassicTemplate'
+import ElegantTemplate      from './ElegantTemplate'
+import ModernTemplate       from './ModernTemplate'
+import ClassicTemplate      from './ClassicTemplate'
+import WeddingBodaTemplate  from './WeddingBodaTemplate'
 
 /**
  * Template registry.
@@ -11,14 +12,17 @@ import ClassicTemplate from './ClassicTemplate'
  *  3. Add an entry to TEMPLATES using the same key you'll use as templateId
  *     in the event config.
  *
- * Each template component receives two props:
- *   event  — the event config object  { name, description, location, address, date, time }
- *   guest  — the guest object         { name, seats, confirmed }  (nullable on the home page)
+ * Each template component receives:
+ *   event    — event config object  { name, description, location, address, date, time, lang }
+ *   guest    — guest object         { name, seats, confirmed }  (nullable on the home page)
+ *   tokenMap — token replacement map (optional, used by dynamic templates)
+ *   lang     — 'es' | 'en' for bilingual templates
  */
 const TEMPLATES = {
-  elegant: ElegantTemplate,
-  modern:  ModernTemplate,
-  classic: ClassicTemplate,
+  elegant:       ElegantTemplate,
+  modern:        ModernTemplate,
+  classic:       ClassicTemplate,
+  'wedding-boda': WeddingBodaTemplate,
 }
 
 /**
@@ -27,7 +31,7 @@ const TEMPLATES = {
  * Selects and renders the template whose key matches event.templateId.
  * Falls back to ElegantTemplate if the key is not found.
  */
-export default function InvitationPoster({ event, guest }) {
+export default function InvitationPoster({ event, guest, tokenMap, lang }) {
   const Template = TEMPLATES[event?.templateId] ?? ElegantTemplate
-  return <Template event={event} guest={guest} />
+  return <Template event={event} guest={guest} tokenMap={tokenMap} lang={lang} />
 }

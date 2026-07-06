@@ -62,6 +62,7 @@ module.exports = async function (context, req) {
         location:           updates.location?.trim()           ?? existing.location,
         address:            updates.address?.trim()            ?? existing.address,
         colorPalette:       updates.colorPalette               ?? existing.colorPalette,
+        templateId:         updates.templateId != null ? (updates.templateId ?? '').trim() : (existing.templateId ?? ''),
         selectedTemplateId: updates.selectedTemplateId?.trim() ?? existing.selectedTemplateId,
         selectedComponents: Array.isArray(updates.selectedComponents)
           ? updates.selectedComponents

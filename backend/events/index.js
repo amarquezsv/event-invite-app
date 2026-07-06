@@ -28,7 +28,7 @@ module.exports = async function (context, req) {
   if (method === 'POST') {
     const {
       name, category, date, time, location, address,
-      colorPalette, selectedTemplateId, selectedComponents, customTexts,
+      colorPalette, templateId, selectedTemplateId, selectedComponents, customTexts,
     } = req.body ?? {}
 
     if (!name?.trim()) {
@@ -47,12 +47,13 @@ module.exports = async function (context, req) {
         location: (location ?? '').trim(),
         address: (address ?? '').trim(),
         colorPalette: colorPalette ?? {
-          color1: '#6d28d9',
-          color2: '#a78bfa',
-          color3: '#ddd6fe',
-          color4: '#1e1b4b',
+          color1: '#21418d',
+          color2: '#b8942d',
+          color3: '#f7f3ea',
+          color4: '#2e7d32',
           color5: '#ffffff',
         },
+        templateId: (templateId ?? '').trim(),
         selectedTemplateId: (selectedTemplateId ?? '').trim(),
         selectedComponents: Array.isArray(selectedComponents) ? selectedComponents : [],
         customTexts: customTexts && typeof customTexts === 'object' ? customTexts : {},

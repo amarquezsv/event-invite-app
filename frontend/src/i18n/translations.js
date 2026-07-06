@@ -99,6 +99,14 @@ export const translations = {
       usingClassic:        'Using classic built-in poster.',
       verifyGuestView:     '🔗 Verify guest view ↗',
     },
+    // Guest-facing invitation page strings (public, not admin)
+    invitation: {
+      seatsReserved:  '{seats} seat{s} reserved for you',
+      confirmBtn:     'Reserve My Seats',
+      confirming:     'Confirming…',
+      confirmed:      '✓ Attendance confirmed — see you there!',
+      confirmFailed:  'Failed to confirm attendance. Please try again.',
+    },
   },
 
   es: {
@@ -188,6 +196,14 @@ export const translations = {
       templateSaved:       'Plantilla guardada:',
       usingClassic:        'Usando póster clásico integrado.',
       verifyGuestView:     '🔗 Verificar vista del invitado ↗',
+    },
+    // Guest-facing invitation page strings (public, not admin)
+    invitation: {
+      seatsReserved:  '{seats} {s} reservado{p} para ti',
+      confirmBtn:     'Confirmar Asistencia',
+      confirming:     'Confirmando…',
+      confirmed:      '✓ Asistencia confirmada — ¡te esperamos!',
+      confirmFailed:  'Error al confirmar asistencia. Por favor intenta de nuevo.',
     },
   },
 }
