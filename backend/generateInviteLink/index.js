@@ -149,14 +149,20 @@ module.exports = async function (context, req) {
     }
 
     // Build token map for the frontend renderer
-    const palette  = event.colorPalette ?? {}
+    // Apply per-guest built-in template override so InvitationPoster picks
+    // the correct component when the guest has a templateId assigned.
+    const effectiveEvent = guest.templateId
+      ? { ...event, templateId: guest.templateId }
+      : event
+
+    const palette  = effectiveEvent.colorPalette ?? {}
     const tokenMap = {
-      eventName:     event.name     ?? '',
-      eventDate:     event.date     ?? '',
-      eventTime:     event.time     ?? '',
-      eventLocation: event.location ?? '',
-      eventAddress:  event.address  ?? '',
-      category:      event.category ?? '',
+      eventName:     effectiveEvent.name     ?? '',
+      eventDate:     effectiveEvent.date     ?? '',
+      eventTime:     effectiveEvent.time     ?? '',
+      eventLocation: effectiveEvent.location ?? '',
+      eventAddress:  effectiveEvent.address  ?? '',
+      category:      effectiveEvent.category ?? '',
       color1:  palette.color1 ?? '#6d28d9',
       color2:  palette.color2 ?? '#a78bfa',
       color3:  palette.color3 ?? '#ddd6fe',
@@ -166,7 +172,7 @@ module.exports = async function (context, req) {
       guestSeats:  String(guest.seats ?? 1),
       customNotes: guest.customNotes ?? '',
       inviteLink,
-      ...(event.customTexts ?? {}),
+      ...(effectiveEvent.customTexts ?? {}),
     }
 
     context.res = {
@@ -174,7 +180,7 @@ module.exports = async function (context, req) {
       headers: { 'Content-Type': 'application/json' },
       body: {
         guest,
-        event,
+        event: effectiveEvent,
         template,
         invitationPage,
         invitationPages,

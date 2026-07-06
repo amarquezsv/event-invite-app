@@ -114,15 +114,22 @@ module.exports = async function (context, req) {
     const baseUrl    = (process.env.APP_BASE_URL ?? '').replace(/\/$/, '')
     const inviteLink = guest.inviteLink ?? `${baseUrl}/invite/${guest.id}`
 
+    // Apply per-guest built-in template override: if the guest has a templateId
+    // set it takes precedence over the event-level templateId so the frontend
+    // InvitationPoster renders the correct component.
+    const eventForResponse = guest.templateId
+      ? { ...event, templateId: guest.templateId }
+      : event
+
     // Build token map for frontend rendering
-    const palette   = event.colorPalette ?? {}
+    const palette   = eventForResponse.colorPalette ?? {}
     const tokenMap  = {
-      eventName:    event.name     ?? '',
-      eventDate:    event.date     ?? '',
-      eventTime:    event.time     ?? '',
-      eventLocation: event.location ?? '',
-      eventAddress: event.address  ?? '',
-      category:     event.category ?? '',
+      eventName:    eventForResponse.name     ?? '',
+      eventDate:    eventForResponse.date     ?? '',
+      eventTime:    eventForResponse.time     ?? '',
+      eventLocation: eventForResponse.location ?? '',
+      eventAddress: eventForResponse.address  ?? '',
+      category:     eventForResponse.category ?? '',
       color1:       palette.color1 ?? '#6d28d9',
       color2:       palette.color2 ?? '#a78bfa',
       color3:       palette.color3 ?? '#ddd6fe',
@@ -132,7 +139,7 @@ module.exports = async function (context, req) {
       guestSeats:   String(guest.seats ?? 1),
       customNotes:  guest.customNotes ?? '',
       inviteLink,
-      ...(event.customTexts ?? {}),
+      ...(eventForResponse.customTexts ?? {}),
     }
 
     context.res = {
@@ -140,7 +147,7 @@ module.exports = async function (context, req) {
       headers: { 'Content-Type': 'application/json' },
       body: {
         guest,
-        event,
+        event: eventForResponse,
         template,
         invitationPage,
         tokenMap,

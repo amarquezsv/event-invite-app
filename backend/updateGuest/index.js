@@ -7,7 +7,8 @@ const { getContainer } = require('../shared/cosmosClient')
  * Only the fields provided in the request body are changed;
  * all other fields retain their current values.
  *
- * Updatable fields: name, whatsapp, seats, confirmed
+ * Updatable fields: name, whatsapp, seats, confirmed, customNotes, eventId,
+ *                    invitationPageId, templateId
  */
 module.exports = async function (context, req) {
   const { id } = context.bindingData
@@ -57,6 +58,9 @@ module.exports = async function (context, req) {
       invitationPageId: updates.invitationPageId !== undefined
         ? (updates.invitationPageId || null)
         : (existing.invitationPageId ?? null),
+      templateId: updates.templateId !== undefined
+        ? (updates.templateId?.trim() || null)
+        : (existing.templateId ?? null),
       updatedAt: new Date().toISOString(),
     }
 

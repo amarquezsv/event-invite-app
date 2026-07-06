@@ -7,6 +7,7 @@ import {
 import WhatsAppButton from '../../components/admin/WhatsAppButton'
 import { getCountryFromPhone } from '../../utils/phoneCountry'
 import { useLang } from '../../context/LanguageContext'
+import { BUILT_IN_TEMPLATES } from '../../components/invitation/builtInTemplates'
 
 /**
  * GuestManagement — admin page for managing guests across all events.
@@ -136,13 +137,31 @@ export default function GuestManagement() {
     }
   }
 
-  async function handleTemplateChange(guestId, invitationPageId) {
+  async function handleTemplateChange(guestId, value) {
     try {
-      const updated = await updateGuest(guestId, { invitationPageId: invitationPageId || null })
+      let updates
+      if (!value) {
+        // Event default — clear both overrides
+        updates = { invitationPageId: null, templateId: null }
+      } else if (value.startsWith('__builtin__:')) {
+        // Built-in JSX template
+        updates = { templateId: value.replace('__builtin__:', ''), invitationPageId: null }
+      } else {
+        // Custom invitation page
+        updates = { invitationPageId: value, templateId: null }
+      }
+      const updated = await updateGuest(guestId, updates)
       setGuests((prev) => prev.map((g) => (g.id === guestId ? updated : g)))
     } catch {
       alert(t('guests.failedUpdateTemplate'))
     }
+  }
+
+  /** Returns the current <select> value for a guest's template assignment */
+  function getGuestTemplateValue(g) {
+    if (g.invitationPageId) return g.invitationPageId
+    if (g.templateId)       return `__builtin__:${g.templateId}`
+    return ''
   }
 
   // ── Send Invitation modal ─────────────────────────────────────
@@ -399,7 +418,7 @@ export default function GuestManagement() {
                 <tr>
                   {[
                     t('guests.colName'), t('guests.colWA'), t('guests.colSeats'), t('guests.colNotes'),
-                    ...(invitationPages.length > 0 ? [t('guests.colTemplate')] : []),
+                    ...(selectedEventId ? [t('guests.colTemplate')] : []),
                     t('guests.colStatus'), t('guests.colActions'),
                   ].map((h) => (
                     <th
@@ -438,20 +457,31 @@ export default function GuestManagement() {
                     <td className="px-4 py-3 text-slate-600">{g.seats}</td>
                     <td className="px-4 py-3 text-slate-400 max-w-xs truncate">{g.customNotes}</td>
 
-                    {/* Template selector — only visible when the event has pages */}
-                    {invitationPages.length > 0 && (
+                    {/* Template selector — visible whenever an event is selected */}
+                    {selectedEventId && (
                       <td className="px-4 py-3">
                         <select
-                          value={g.invitationPageId ?? ''}
+                          value={getGuestTemplateValue(g)}
                           onChange={(e) => handleTemplateChange(g.id, e.target.value)}
-                          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-violet-400 max-w-35"
+                          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-violet-400 max-w-40"
                         >
                           <option value="">{t('guests.defaultTemplate')}</option>
-                          {invitationPages.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}{p.isActive ? ' ✓' : ''}
-                            </option>
-                          ))}
+                          <optgroup label="Built-in">
+                            {BUILT_IN_TEMPLATES.map((tmpl) => (
+                              <option key={tmpl.id} value={`__builtin__:${tmpl.id}`}>
+                                {tmpl.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                          {invitationPages.length > 0 && (
+                            <optgroup label="Custom Designs">
+                              {invitationPages.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}{p.isActive ? ' ✓' : ''}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
                         </select>
                       </td>
                     )}
