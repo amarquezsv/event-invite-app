@@ -62,7 +62,12 @@ module.exports = async function (context, req) {
       template = templates[0] ?? null
     }
 
-    // Fetch the invitation page — guest's pinned page takes priority over the active page
+    // Fetch the invitation page.
+    // Priority:
+    //   1. Guest's pinned page (invitationPageId)  — explicit custom page
+    //   2. Guest's built-in templateId             — explicit built-in, skip custom fallback
+    //   3. Event's active page                     — event-level default
+    //   4. Event's most-recent page                — last resort
     let invitationPage = null
 
     // Use separate try blocks so a failure in one doesn't block the others.
@@ -76,7 +81,10 @@ module.exports = async function (context, req) {
       } catch (_) { /* non-fatal */ }
     }
 
-    if (!invitationPage) {
+    // Only fall back to the event's active/recent page when the guest has NO
+    // explicit assignment. If guest.templateId is set, the built-in JSX
+    // component should render and a custom page must not override it.
+    if (!invitationPage && !guest.invitationPageId && !guest.templateId) {
       // Fall back to the active page for the event, then most recent
       try {
         const { resources: activePages } = await pageContainer.items
@@ -94,7 +102,7 @@ module.exports = async function (context, req) {
       } catch (_) { /* non-fatal */ }
     }
 
-    if (!invitationPage) {
+    if (!invitationPage && !guest.invitationPageId && !guest.templateId) {
       try {
         const { resources: pages } = await pageContainer.items
           .query({

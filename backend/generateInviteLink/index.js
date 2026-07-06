@@ -125,8 +125,8 @@ module.exports = async function (context, req) {
         invitationPages = (allMeta ?? []).sort((a, b) => (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0))
       } catch (_) { /* non-fatal — list may be empty */ }
 
-      // ── Step 2: pinned page — use a point-read (partition key = id) so this never
-      //    fails due to cross-partition query restrictions or a missing composite index ──
+      // ── Step 2: pinned page — point-read (partition key = id) so this never
+      //    fails due to cross-partition query restrictions ──
       if (guest.invitationPageId) {
         try {
           const { resource: pinned } = await pageContainer
@@ -136,8 +136,10 @@ module.exports = async function (context, req) {
         } catch (_) { /* non-fatal — page may have been deleted */ }
       }
 
-      // ── Step 3: fallback — active page or most-recent for this event ──
-      if (!invitationPage && invitationPages.length > 0) {
+      // ── Step 3: fallback — only when the guest has NO explicit assignment.
+      //    If guest.templateId is set the built-in JSX component should render;
+      //    loading a custom page here would silently override it.
+      if (!invitationPage && !guest.invitationPageId && !guest.templateId && invitationPages.length > 0) {
         try {
           const defaultId = invitationPages.find((p) => p.isActive)?.id ?? invitationPages[0].id
           const { resource: fallback } = await pageContainer
